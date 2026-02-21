@@ -22,6 +22,7 @@ export default function DashboardLayout({
   const pathname = usePathname();
   const [user, setUser] = useState<UserState>(null);
   const [loading, setLoading] = useState(true);
+  const [redirectingToLogin, setRedirectingToLogin] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(() => {
     if (typeof window === 'undefined') return false;
@@ -36,6 +37,13 @@ export default function DashboardLayout({
     const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
     const userStr = typeof window !== 'undefined' ? localStorage.getItem('user') : null;
     if (!token) {
+      setLoading(false);
+      setRedirectingToLogin(true);
+      try {
+        document.cookie = 'token=; path=/; max-age=0';
+      } catch {
+        // ignore
+      }
       router.replace('/login');
       return;
     }
@@ -69,6 +77,18 @@ export default function DashboardLayout({
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
+      </div>
+    );
+  }
+
+  if (redirectingToLogin) {
+    return (
+      <div className="flex min-h-screen flex-col items-center justify-center gap-4 bg-gray-50 px-4">
+        <div className="h-8 w-8 animate-spin rounded-full border-2 border-primary-600 border-t-transparent" />
+        <p className="text-sm text-gray-600">جاري التحويل إلى تسجيل الدخول...</p>
+        <a href="/login" className="text-primary-600 underline">
+          إذا لم يتم التحويل، اضغط هنا
+        </a>
       </div>
     );
   }
