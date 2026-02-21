@@ -14,9 +14,15 @@ export const metadata: Metadata = {
   title: 'نظام إدارة الإجازات | مستشفى الحكيم',
   description: 'نظام إدارة الإجازات والدوام والغيابات',
   manifest: '/manifest.json',
-  themeColor: '#0F4C81',
-  viewport: 'width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no',
   appleWebApp: { capable: true, title: 'الحكيم HR' },
+};
+
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  themeColor: '#0F4C81',
 };
 
 export default function RootLayout({

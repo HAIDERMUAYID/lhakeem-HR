@@ -1,5 +1,6 @@
-# Render Blueprint - Al-Hakeem HR
-# https://render.com/docs/blueprint-spec
+# Render Blueprint – استخدام قاعدة بيانات موجودة
+# استخدم هذا الملف إذا كان لديك بالفعل PostgreSQL على Render ومربوط بالنظام.
+# في لوحة Render: New → Blueprint → اختر هذا الملف أو أنشئ الخدمتين يدوياً واربط DATABASE_URL بقاعدتك.
 
 services:
   - type: web
@@ -10,9 +11,7 @@ services:
     startCommand: npx prisma migrate deploy && npm run start:prod
     envVars:
       - key: DATABASE_URL
-        fromDatabase:
-          name: alhakeem-db
-          property: connectionString
+        sync: false   # ضعه يدوياً من قاعدة البيانات الموجودة (Internal Database URL)
       - key: JWT_SECRET
         generateValue: true
       - key: NODE_ENV
@@ -26,9 +25,4 @@ services:
     startCommand: npm run start
     envVars:
       - key: NEXT_PUBLIC_API_URL
-        sync: false  # Set manually to your API URL on Render
-
-databases:
-  - name: alhakeem-db
-    databaseName: alhakeem_hr
-    plan: starter
+        sync: false   # ضعه يدوياً بعد نشر الـ API (رابط alhakeem-api)

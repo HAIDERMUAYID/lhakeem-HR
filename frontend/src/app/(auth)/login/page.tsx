@@ -75,8 +75,8 @@ export default function LoginPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ username: data.username.trim(), password: data.password }),
       });
-      const result = await res.json();
-      if (!res.ok) throw new Error(result.message || 'حدث خطأ');
+      const result = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(result.message || (res.status === 500 ? 'خطأ من الخادم (500) — راجع سجلات الـ API أو تأكد من تشغيل seed' : 'حدث خطأ'));
       if (result.access_token) {
         localStorage.setItem('token', result.access_token);
         localStorage.setItem('user', JSON.stringify(result.user || {}));
