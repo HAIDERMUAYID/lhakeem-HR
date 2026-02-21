@@ -26,6 +26,7 @@ import {
   FileDown,
   Fingerprint,
   Trash2,
+  Calendar,
 } from 'lucide-react';
 import { useDebounce } from '@/hooks/use-debounce';
 import { toast } from '@/hooks/use-toast';
@@ -119,13 +120,17 @@ export default function EmployeesPage() {
   const [importDragOver, setImportDragOver] = useState(false);
   const [pendingFingerprints, setPendingFingerprints] = useState<{ deviceId: string; fingerprintId: string }[]>([]);
   const [addFpDeviceId, setAddFpDeviceId] = useState('');
-  const [addFpId, setAddFpId] = useState('');
   const [editFingerprints, setEditFingerprints] = useState<{ id?: string; deviceId: string; fingerprintId: string; device?: { id: string; name: string; code?: string | null } }[]>([]);
   const initialEditFingerprintIds = useRef<string[]>([]);
   const [editFpDeviceId, setEditFpDeviceId] = useState('');
   const [editFpId, setEditFpId] = useState('');
-  /** ref لحقل الرصيد — حقل غير خاضع للتحكم (uncontrolled) لتفادي اختفاء المؤشر عند الكتابة على الجوال */
+  /** refs لحقول النص والتاريخ — غير خاضعة للتحكم لتفادي قبول حرف حرف على الجوال */
+  const fullNameRef = useRef<HTMLInputElement>(null);
+  const jobTitleRef = useRef<HTMLInputElement>(null);
+  const balanceStartDateRef = useRef<HTMLInputElement>(null);
   const leaveBalanceInputRef = useRef<HTMLInputElement>(null);
+  const addFpIdRef = useRef<HTMLInputElement>(null);
+  const editFpIdRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
 
@@ -199,7 +204,6 @@ export default function EmployeesPage() {
       setForm(formDefaults);
       setPendingFingerprints([]);
       setAddFpDeviceId('');
-      setAddFpId('');
       toast.success('تمت إضافة الموظف بنجاح');
     },
   });
@@ -495,93 +499,124 @@ export default function EmployeesPage() {
   }, []);
 
   const FormFields = ({ prepend, leaveBalanceKey }: { prepend?: React.ReactNode; leaveBalanceKey?: string } = {}) => (
-    <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
-      {prepend != null && <div className="col-span-2">{prepend}</div>}
-      <FormField label="الاسم الرباعي واللقب" icon={UserCircle}>
-        <Input
-          value={form.fullName}
-          onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
-          placeholder="أدخل الاسم الكامل"
-          required
-        />
-      </FormField>
-      <FormField label="العنوان الوظيفي" icon={Briefcase}>
-        <Input
-          value={form.jobTitle}
-          onChange={(e) => setForm((f) => ({ ...f, jobTitle: e.target.value }))}
-          placeholder="مثال: طبيب استشاري"
-          required
-        />
-      </FormField>
-      <FormField label="القسم" icon={Building2}>
-        <Select
-          value={form.departmentId}
-          onChange={(v) => setForm((f) => ({ ...f, departmentId: v }))}
-          options={deptOptions}
-          placeholder="اختر القسم"
-        />
-      </FormField>
-      <FormField label="نوع الدوام" icon={Sun}>
-        <Select
-          value={form.workType}
-          onChange={(v) => setForm((f) => ({ ...f, workType: (v as 'MORNING' | 'SHIFTS') || 'MORNING' }))}
-          options={[
-            { value: 'MORNING', label: 'صباحي' },
-            { value: 'SHIFTS', label: 'خفارات' },
-          ]}
-          placeholder="صباحي"
-        />
-      </FormField>
-      <FormField label="المسؤول المباشر">
-        <Select
-          value={form.managerUserId}
-          onChange={(v) => setForm((f) => ({ ...f, managerUserId: v }))}
-          options={userOptions}
-          placeholder="اختياري"
-        />
-      </FormField>
-      <FormField label="الرصيد التراكمي (عدد الأيام)">
-        <Input
-          ref={leaveBalanceInputRef}
-          key={leaveBalanceKey ?? 'leave-balance'}
-          inputMode="decimal"
-          type="text"
-          defaultValue={String(form.leaveBalance ?? '')}
-          onInput={(e) => {
-            const el = e.target as HTMLInputElement;
-            const v = el.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
-            if (el.value !== v) el.value = v;
-          }}
-          onBlur={(e) => {
-            const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
-            setForm((f) => ({ ...f, leaveBalance: v }));
-          }}
-          placeholder="0"
-        />
-      </FormField>
-      <FormField label="هذا الرصيد صحيح لغاية تاريخ (إجباري عند إدخال رصيد)">
-        <Input
-          type="date"
-          inputMode="none"
-          autoComplete="off"
-          value={form.balanceStartDate}
-          onChange={(e) => setForm((f) => ({ ...f, balanceStartDate: e.target.value || '' }))}
-          placeholder="اختر التاريخ"
-        />
+    <div className="space-y-6">
+      {prepend != null && (
+        <section className="rounded-2xl border border-gray-100 bg-gray-50/50 p-4 sm:p-5">
+          {prepend}
+        </section>
+      )}
+      <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+          <UserCircle className="h-4 w-4 text-primary-600" />
+          البيانات الأساسية
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormField label="الاسم الرباعي واللقب" icon={UserCircle}>
+            <Input
+              ref={fullNameRef}
+              key={`fn-${leaveBalanceKey ?? 'add'}`}
+              type="text"
+              defaultValue={form.fullName}
+              placeholder="أدخل الاسم الكامل"
+              required
+              className="min-h-[44px]"
+              autoComplete="name"
+            />
+          </FormField>
+          <FormField label="العنوان الوظيفي" icon={Briefcase}>
+            <Input
+              ref={jobTitleRef}
+              key={`jt-${leaveBalanceKey ?? 'add'}`}
+              type="text"
+              defaultValue={form.jobTitle}
+              placeholder="مثال: طبيب استشاري"
+              required
+              className="min-h-[44px]"
+              autoComplete="organization-title"
+            />
+          </FormField>
+          <FormField label="القسم" icon={Building2}>
+            <Select
+              value={form.departmentId}
+              onChange={(v) => setForm((f) => ({ ...f, departmentId: v }))}
+              options={deptOptions}
+              placeholder="اختر القسم"
+            />
+          </FormField>
+          <FormField label="نوع الدوام" icon={Sun}>
+            <Select
+              value={form.workType}
+              onChange={(v) => setForm((f) => ({ ...f, workType: (v as 'MORNING' | 'SHIFTS') || 'MORNING' }))}
+              options={[
+                { value: 'MORNING', label: 'صباحي' },
+                { value: 'SHIFTS', label: 'خفارات' },
+              ]}
+              placeholder="صباحي"
+            />
+          </FormField>
+          <FormField label="المسؤول المباشر" colSpan={2}>
+            <Select
+              value={form.managerUserId}
+              onChange={(v) => setForm((f) => ({ ...f, managerUserId: v }))}
+              options={userOptions}
+              placeholder="اختياري"
+            />
+          </FormField>
+        </div>
+      </section>
+      <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 space-y-4">
+        <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-primary-600" />
+          الرصيد والتواريخ
+        </h3>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <FormField label="الرصيد التراكمي (عدد الأيام)">
+            <Input
+              ref={leaveBalanceInputRef}
+              key={leaveBalanceKey ?? 'leave-balance'}
+              inputMode="decimal"
+              type="text"
+              defaultValue={String(form.leaveBalance ?? '')}
+              onInput={(e) => {
+                const el = e.target as HTMLInputElement;
+                const v = el.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                if (el.value !== v) el.value = v;
+              }}
+              onBlur={(e) => {
+                const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                setForm((f) => ({ ...f, leaveBalance: v }));
+              }}
+              placeholder="0"
+              className="min-h-[44px]"
+            />
+          </FormField>
+          <FormField label="هذا الرصيد صحيح لغاية تاريخ (إجباري عند إدخال رصيد)">
+            <Input
+              ref={balanceStartDateRef}
+              key={`bsd-${leaveBalanceKey ?? 'add'}`}
+              type="date"
+              inputMode="none"
+              autoComplete="off"
+              defaultValue={form.balanceStartDate}
+              placeholder="اختر التاريخ"
+              className="min-h-[44px]"
+            />
+          </FormField>
+          <FormField label="حالة الموظف" colSpan={2}>
+            <Select
+              value={form.isActive ? 'active' : 'suspended'}
+              onChange={(v) => setForm((f) => ({ ...f, isActive: v === 'active' }))}
+              options={[
+                { value: 'active', label: 'نشط' },
+                { value: 'suspended', label: 'متوقف' },
+              ]}
+            />
+          </FormField>
+        </div>
         <p className="text-xs text-gray-500 mt-1">
           عند الحفظ سيحسب النظام الرصيد الفعلي مرة واحدة (من التاريخ حتى اليوم مع خصم الإجازات المعتمدة) ويخزنه. بعدها يُخصم عند اعتماد إجازات ويُزاد يومياً بالاستحقاق.
         </p>
-      </FormField>
-      <FormField label="حالة الموظف">
-        <Select
-          value={form.isActive ? 'active' : 'suspended'}
-          onChange={(v) => setForm((f) => ({ ...f, isActive: v === 'active' }))}
-          options={[
-            { value: 'active', label: 'نشط' },
-            { value: 'suspended', label: 'متوقف' },
-          ]}
-        />
-      </FormField>
+      </section>
     </div>
   );
 
@@ -643,7 +678,7 @@ export default function EmployeesPage() {
               استيراد Excel
             </Button>
           )}
-          <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md">
+          <Button onClick={() => { setForm(formDefaults); setAddOpen(true); }} className="gap-2 shadow-md">
             <Plus className="h-5 w-5" />
             إضافة موظف
           </Button>
@@ -797,7 +832,7 @@ export default function EmployeesPage() {
               description="أضف موظفين يدوياً أو استورد من ملف Excel"
               actionLabel="إضافة أول موظف"
               actionIcon={Plus}
-              onAction={() => setAddOpen(true)}
+              onAction={() => { setForm(formDefaults); setAddOpen(true); }}
             />
           ) : (
             <ResponsiveDataView
@@ -1015,19 +1050,22 @@ export default function EmployeesPage() {
             e.preventDefault();
             if (!editingId) return;
             const balanceNum = Number(getLeaveBalanceValue()) || 0;
-            if (balanceNum > 0 && !form.balanceStartDate?.trim()) {
+            const balanceStartVal = balanceStartDateRef.current?.value?.trim() ?? '';
+            if (balanceNum > 0 && !balanceStartVal) {
               toast.error('عند إدخال رصيد يجب اختيار «هذا الرصيد صحيح لغاية تاريخ».');
               return;
             }
-            const { leaveBalance: _lb, ...formRest } = form;
             editMutation.mutate({
               id: editingId,
               body: {
-                ...formRest,
-                leaveBalance: balanceNum,
-                managerUserId: form.managerUserId || null,
+                fullName: fullNameRef.current?.value?.trim() ?? '',
+                jobTitle: jobTitleRef.current?.value?.trim() ?? '',
+                departmentId: form.departmentId,
                 workType: form.workType || 'MORNING',
-                balanceStartDate: form.balanceStartDate?.trim() ?? '',
+                managerUserId: form.managerUserId || null,
+                leaveBalance: balanceNum,
+                balanceStartDate: balanceStartVal,
+                isActive: form.isActive,
               } as EmployeeFormBody,
             });
           }}
@@ -1046,20 +1084,32 @@ export default function EmployeesPage() {
                     <span className="block text-xs text-gray-500 mb-1">الجهاز</span>
                     <Select value={editFpDeviceId} onChange={setEditFpDeviceId} options={deviceOptions} placeholder="اختر الجهاز" />
                   </div>
-                  <div className="w-24">
+                  <div className="w-28">
                     <span className="block text-xs text-gray-500 mb-1">المعرف</span>
-                    <Input value={editFpId} onChange={(e) => setEditFpId(e.target.value)} placeholder="7" />
+                    <Input
+                      ref={editFpIdRef}
+                      type="text"
+                      inputMode="numeric"
+                      defaultValue=""
+                      placeholder="7"
+                      className="min-h-[44px]"
+                      onInput={(e) => {
+                        const el = e.target as HTMLInputElement;
+                        if (!/^\d*$/.test(el.value)) el.value = el.value.replace(/\D/g, '');
+                      }}
+                    />
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="min-h-[44px]"
                     onClick={() => {
-                      const fid = editFpId.trim();
+                      const fid = editFpIdRef.current?.value?.trim() ?? '';
                       if (!editFpDeviceId || !fid) return;
                       if (editFingerprints.some((f) => f.deviceId === editFpDeviceId && f.fingerprintId === fid)) return;
                       setEditFingerprints((prev) => [...prev, { deviceId: editFpDeviceId, fingerprintId: fid }]);
-                      setEditFpId('');
+                      if (editFpIdRef.current) editFpIdRef.current.value = '';
                     }}
                   >
                     إضافة
@@ -1112,7 +1162,6 @@ export default function EmployeesPage() {
           setAddOpen(false);
           setPendingFingerprints([]);
           setAddFpDeviceId('');
-          setAddFpId('');
         }}
         title="إضافة موظف جديد"
         className="max-w-2xl"
@@ -1126,17 +1175,21 @@ export default function EmployeesPage() {
           onSubmit={(e) => {
             e.preventDefault();
             const balanceNum = Number(getLeaveBalanceValue()) || 0;
-            if (balanceNum > 0 && !form.balanceStartDate?.trim()) {
+            const balanceStartVal = balanceStartDateRef.current?.value?.trim() ?? '';
+            if (balanceNum > 0 && !balanceStartVal) {
               toast.error('عند إدخال رصيد يجب اختيار «هذا الرصيد صحيح لغاية تاريخ».');
               return;
             }
-            const { leaveBalance: _lb2, ...formRestAdd } = form;
             addMutation.mutate({
               body: {
-                ...formRestAdd,
-                leaveBalance: balanceNum,
-                managerUserId: form.managerUserId || null,
+                fullName: fullNameRef.current?.value?.trim() ?? '',
+                jobTitle: jobTitleRef.current?.value?.trim() ?? '',
+                departmentId: form.departmentId,
                 workType: form.workType || 'MORNING',
+                managerUserId: form.managerUserId || null,
+                leaveBalance: balanceNum,
+                balanceStartDate: balanceStartVal,
+                isActive: form.isActive,
               } as EmployeeFormBody,
               fingerprints: pendingFingerprints,
             });
@@ -1159,20 +1212,32 @@ export default function EmployeesPage() {
                     <span className="block text-xs text-gray-500 mb-1">الجهاز</span>
                     <Select value={addFpDeviceId} onChange={setAddFpDeviceId} options={deviceOptions} placeholder="اختر الجهاز" />
                   </div>
-                  <div className="w-24">
+                  <div className="w-28">
                     <span className="block text-xs text-gray-500 mb-1">المعرف</span>
-                    <Input value={addFpId} onChange={(e) => setAddFpId(e.target.value)} placeholder="7" />
+                    <Input
+                      ref={addFpIdRef}
+                      type="text"
+                      inputMode="numeric"
+                      defaultValue=""
+                      placeholder="7"
+                      className="min-h-[44px]"
+                      onInput={(e) => {
+                        const el = e.target as HTMLInputElement;
+                        if (!/^\d*$/.test(el.value)) el.value = el.value.replace(/\D/g, '');
+                      }}
+                    />
                   </div>
                   <Button
                     type="button"
                     variant="outline"
                     size="sm"
+                    className="min-h-[44px]"
                     onClick={() => {
-                      const fid = addFpId.trim();
+                      const fid = addFpIdRef.current?.value?.trim() ?? '';
                       if (!addFpDeviceId || !fid) return;
                       if (pendingFingerprints.some((p) => p.deviceId === addFpDeviceId && p.fingerprintId === fid)) return;
                       setPendingFingerprints((prev) => [...prev, { deviceId: addFpDeviceId, fingerprintId: fid }]);
-                      setAddFpId('');
+                      if (addFpIdRef.current) addFpIdRef.current.value = '';
                     }}
                   >
                     إضافة

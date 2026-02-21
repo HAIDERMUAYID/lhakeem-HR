@@ -230,16 +230,17 @@ export default function LeavesPage() {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
   const [canApprove, setCanApprove] = useState(false);
-  const [useHours, setUseHours] = useState(true);
+  /** الأيام أولاً (افتراضي) ثم الساعات — حسب الأنظمة العالمية للإجازات */
+  const [useHours, setUseHours] = useState(false);
   /** قيم محلية لعدد الأيام/الساعات — تحديث عند كل ضغطة فقط لكتابة سلسة على الجوال */
   const [localDaysCount, setLocalDaysCount] = useState('2');
-  const [localHoursCount, setLocalHoursCount] = useState('14');
-  /** أيام/ساعات كنص لتفادي أخطاء الإدخال على الجوال (مثلاً 2 تُكتب 20) */
+  const [localHoursCount, setLocalHoursCount] = useState('2');
+  /** مدة الساعات: من 1 إلى 4 ساعات كحد أقصى. كل 7 ساعات = يوم من الرصيد */
   const [form, setForm] = useState({
     employeeId: '',
     leaveTypeId: '',
     startDate: '',
-    hoursCount: '14',
+    hoursCount: '2',
     daysCount: '2',
     reason: '',
   });
@@ -507,8 +508,14 @@ export default function LeavesPage() {
     };
   };
 
-  const requiredHours = useHours ? (Number(localHoursCount) || 0) : (Number(localDaysCount) || 0) * HOURS_PER_DAY;
-  const requiredDays = Math.ceil(requiredHours / HOURS_PER_DAY) || 1;
+  /** عند اختيار الساعات: من 1 إلى 4 ساعات فقط. كل 7 ساعات = يوم من الرصيد */
+  const HOURS_MIN = 1;
+  const HOURS_MAX = 4;
+  const rawRequiredHours = useHours
+    ? Math.min(HOURS_MAX, Math.max(HOURS_MIN, Number(localHoursCount) || 0))
+    : (Number(localDaysCount) || 0) * HOURS_PER_DAY;
+  const requiredHours = rawRequiredHours;
+  const requiredDays = Math.ceil(requiredHours / HOURS_PER_DAY) || 0;
   const derived = form.startDate ? calcEndAndReturn(form.startDate, requiredHours) : { endDate: '', returnDate: '' };
 
   const selectedEmpBalance = form.employeeId
@@ -518,11 +525,12 @@ export default function LeavesPage() {
   const deductsBalance = selectedLeaveType?.deductFromBalance ?? true;
   const balanceExceeded = deductsBalance && requiredHours > 0 && selectedEmpBalance < requiredDays;
 
-  const HOUR_PRESETS = [
-    { label: 'نصف يوم', hours: 3.5 },
-    { label: 'يوم', hours: 7 },
-    { label: 'يومين', hours: 14 },
-    { label: 'ثلاثة أيام', hours: 21 },
+  /** خيارات الساعات: من 1 إلى 4 ساعات كحد أقصى (كل 7 ساعات = يوم) */
+  const HOUR_OPTIONS = [
+    { label: 'ساعة', hours: 1 },
+    { label: 'ساعتان', hours: 2 },
+    { label: '٣ ساعات', hours: 3 },
+    { label: '٤ ساعات', hours: 4 },
   ];
 
   return (
@@ -536,7 +544,7 @@ export default function LeavesPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">الإجازات</h1>
-          <p className="text-gray-500 mt-1 text-sm">طلبات الإجازات والاعتماد — اليوم = ٧ ساعات عمل</p>
+          <p className="text-gray-500 mt-1 text-sm">طلبات الإجازات والاعتماد — كل ٧ ساعات = يوم من الرصيد • إجازة بالساعات: من ١ إلى ٤ ساعات</p>
         </div>
         <div className="flex flex-wrap gap-2">
           <Button
@@ -996,117 +1004,104 @@ export default function LeavesPage() {
         )}
       </Modal>
 
-      {/* Add Modal - minimal, no explanations */}
+      {/* Add Modal - تصميم وفق معايير طلبات الإجازات */}
       <Modal open={addOpen} onClose={() => setAddOpen(false)} title="طلب إجازة جديدة" className="max-w-2xl">
         <form
           onSubmit={(e) => {
             e.preventDefault();
+            const hoursVal = useHours ? Math.min(HOURS_MAX, Math.max(HOURS_MIN, Number(localHoursCount) || 1)) : undefined;
+            const daysVal = useHours ? undefined : (Number(localDaysCount) || 0);
             addMutation.mutate({
               employeeId: form.employeeId,
               leaveTypeId: form.leaveTypeId,
               startDate: form.startDate,
-              hoursCount: useHours ? (Number(localHoursCount) || 0) : undefined,
-              daysCount: useHours ? undefined : (Number(localDaysCount) || 0),
+              hoursCount: hoursVal,
+              daysCount: daysVal,
               reason: form.reason || undefined,
             });
           }}
-          className="space-y-5"
+          className="space-y-6"
         >
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">الموظف</label>
-              <SearchableSelect
-                value={form.employeeId}
-                onChange={(v) => setForm((f) => ({ ...f, employeeId: v }))}
-                onSelectLabel={setSelectedEmployeeLabel}
-                options={employeeOptions}
-                placeholder="الموظف"
-                searchPlaceholder="بحث..."
-                loadOptions={setEmployeeSearchTerm}
-                isLoading={employeesLoading}
-                selectedLabel={selectedEmployeeLabel || employeeOptions.find((o) => o.value === form.employeeId)?.label}
-              />
-            </div>
-            <div>
-              <label className="block text-xs font-medium text-gray-500 mb-1.5">نوع الإجازة</label>
-              <SearchableSelect
-                value={form.leaveTypeId}
-                onChange={(v) => setForm((f) => ({ ...f, leaveTypeId: v }))}
-                options={leaveTypeOptions}
-                placeholder="نوع الإجازة"
-                searchPlaceholder="بحث..."
-              />
-            </div>
-          </div>
-
-          {form.employeeId && (
-            <div className="flex gap-4 p-4 rounded-2xl bg-gradient-to-l from-primary-50/60 to-transparent border border-primary-100/60">
-              <div className="flex-1 text-center">
-                <p className="text-2xl font-bold text-primary-700">{Number(selectedEmpBalance).toFixed(1)}</p>
-                <p className="text-xs text-gray-500 mt-0.5">رصيد</p>
-              </div>
-              {balanceInfo != null && (
-                <div className="flex-1 text-center border-r border-primary-100">
-                  <p className="text-2xl font-bold text-slate-700">{balanceInfo.leaveDaysInCurrentMonth}</p>
-                  <p className="text-xs text-gray-500 mt-0.5">هذا الشهر</p>
-                </div>
-              )}
-            </div>
-          )}
-
-          <div className="flex gap-2 p-2 rounded-xl bg-slate-50/80">
-            <label className="flex items-center gap-2 cursor-pointer flex-1 justify-center py-2.5 rounded-lg transition-all border-2 border-transparent has-[:checked]:border-primary-500 has-[:checked]:bg-white has-[:checked]:shadow-sm has-[:checked]:text-primary-700">
-              <input type="radio" checked={useHours} onChange={() => setUseHours(true)} className="sr-only" />
-              <Clock className="h-4 w-4" />
-              <span className="text-sm font-medium">ساعات</span>
-            </label>
-            <label className="flex items-center gap-2 cursor-pointer flex-1 justify-center py-2.5 rounded-lg transition-all border-2 border-transparent has-[:checked]:border-primary-500 has-[:checked]:bg-white has-[:checked]:shadow-sm has-[:checked]:text-primary-700">
-              <input type="radio" checked={!useHours} onChange={() => setUseHours(false)} className="sr-only" />
-              <Calendar className="h-4 w-4" />
-              <span className="text-sm font-medium">أيام</span>
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {useHours ? (
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary-600" />
+              معلومات الطلب
+            </h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
-                <label className="block text-xs font-medium text-gray-500 mb-1.5">المدة</label>
-                <div className="flex gap-2 flex-wrap">
-                  {HOUR_PRESETS.map((p) => (
-                    <Button
-                      key={p.hours}
-                      type="button"
-                      variant={Number(localHoursCount) === p.hours ? 'default' : 'outline'}
-                      size="sm"
-                      className="rounded-lg"
-                      onClick={() => {
-                        const s = String(p.hours);
-                        setLocalHoursCount(s);
-                        setForm((f) => ({ ...f, hoursCount: s }));
-                      }}
-                    >
-                      {p.label}
-                    </Button>
-                  ))}
-                </div>
-                <Input
-                  inputMode="decimal"
-                  type="text"
-                  value={localHoursCount}
-                  onChange={(e) => {
-                    const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
-                    setLocalHoursCount(v);
-                  }}
-                  onBlur={(e) => {
-                    const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
-                    setForm((f) => ({ ...f, hoursCount: v }));
-                  }}
-                  placeholder="14"
-                  required
-                  className="rounded-xl mt-2"
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">الموظف</label>
+                <SearchableSelect
+                  value={form.employeeId}
+                  onChange={(v) => setForm((f) => ({ ...f, employeeId: v }))}
+                  onSelectLabel={setSelectedEmployeeLabel}
+                  options={employeeOptions}
+                  placeholder="الموظف"
+                  searchPlaceholder="بحث..."
+                  loadOptions={setEmployeeSearchTerm}
+                  isLoading={employeesLoading}
+                  selectedLabel={selectedEmployeeLabel || employeeOptions.find((o) => o.value === form.employeeId)?.label}
                 />
               </div>
-            ) : (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">نوع الإجازة</label>
+                <SearchableSelect
+                  value={form.leaveTypeId}
+                  onChange={(v) => setForm((f) => ({ ...f, leaveTypeId: v }))}
+                  options={leaveTypeOptions}
+                  placeholder="نوع الإجازة"
+                  searchPlaceholder="بحث..."
+                />
+              </div>
+            </div>
+            {form.employeeId && (
+              <div className="flex gap-4 p-4 rounded-xl bg-gradient-to-l from-primary-50/60 to-transparent border border-primary-100/60">
+                <div className="flex-1 text-center">
+                  <p className="text-2xl font-bold text-primary-700">{Number(selectedEmpBalance).toFixed(1)}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">رصيد (أيام)</p>
+                </div>
+                {balanceInfo != null && (
+                  <div className="flex-1 text-center border-r border-primary-100">
+                    <p className="text-2xl font-bold text-slate-700">{balanceInfo.leaveDaysInCurrentMonth}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">مستحق هذا الشهر</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </section>
+
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
+              <Clock className="h-4 w-4 text-primary-600" />
+              مدة الإجازة — أيام أو ساعات
+            </h3>
+            <p className="text-xs text-gray-500">
+              كل ٧ ساعات عمل تُحتسب يوماً واحداً من الرصيد. عند اختيار الساعات: من ١ إلى ٤ ساعات كحد أقصى.
+            </p>
+          <div className="flex gap-2 p-2 rounded-xl bg-slate-50/80">
+            <label className="flex items-center gap-2 cursor-pointer flex-1 justify-center py-2.5 rounded-lg transition-all border-2 border-transparent has-[:checked]:border-primary-500 has-[:checked]:bg-white has-[:checked]:shadow-sm has-[:checked]:text-primary-700 min-h-[44px]">
+              <input type="radio" checked={!useHours} onChange={() => setUseHours(false)} className="sr-only" />
+              <CalendarDays className="h-4 w-4" />
+              <span className="text-sm font-medium">أيام</span>
+            </label>
+            <label className="flex items-center gap-2 cursor-pointer flex-1 justify-center py-2.5 rounded-lg transition-all border-2 border-transparent has-[:checked]:border-primary-500 has-[:checked]:bg-white has-[:checked]:shadow-sm has-[:checked]:text-primary-700 min-h-[44px]">
+              <input
+                type="radio"
+                checked={useHours}
+                onChange={() => {
+                  setUseHours(true);
+                  const n = Math.min(HOURS_MAX, Math.max(HOURS_MIN, Number(localHoursCount) || 1));
+                  setLocalHoursCount(String(n));
+                  setForm((f) => ({ ...f, hoursCount: String(n) }));
+                }}
+                className="sr-only"
+              />
+              <Clock className="h-4 w-4" />
+              <span className="text-sm font-medium">ساعات (١–٤)</span>
+            </label>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {!useHours ? (
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">عدد الأيام</label>
                 <Input
@@ -1123,7 +1118,50 @@ export default function LeavesPage() {
                   }}
                   placeholder="2"
                   required
-                  className="rounded-xl"
+                  className="rounded-xl min-h-[44px]"
+                />
+              </div>
+            ) : (
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1.5">المدة (حد أقصى ٤ ساعات)</label>
+                <div className="flex gap-2 flex-wrap">
+                  {HOUR_OPTIONS.map((p) => (
+                    <Button
+                      key={p.hours}
+                      type="button"
+                      variant={Number(localHoursCount) === p.hours ? 'default' : 'outline'}
+                      size="sm"
+                      className="rounded-lg min-h-[44px]"
+                      onClick={() => {
+                        const s = String(p.hours);
+                        setLocalHoursCount(s);
+                        setForm((f) => ({ ...f, hoursCount: s }));
+                      }}
+                    >
+                      {p.label}
+                    </Button>
+                  ))}
+                </div>
+                <Input
+                  inputMode="numeric"
+                  type="text"
+                  value={localHoursCount}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    const num = parseInt(v, 10);
+                    if (v === '' || (num >= 1 && num <= 4)) setLocalHoursCount(v || '');
+                    else if (num > 4) setLocalHoursCount('4');
+                  }}
+                  onBlur={(e) => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    const num = Math.min(HOURS_MAX, Math.max(HOURS_MIN, parseInt(v, 10) || 1));
+                    const s = String(num);
+                    setLocalHoursCount(s);
+                    setForm((f) => ({ ...f, hoursCount: s }));
+                  }}
+                  placeholder="1–4"
+                  required
+                  className="rounded-xl mt-2 min-h-[44px]"
                 />
               </div>
             )}
@@ -1136,29 +1174,31 @@ export default function LeavesPage() {
                 value={form.startDate}
                 onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value || '' }))}
                 required
-                className="rounded-xl"
+                className="rounded-xl min-h-[44px]"
               />
             </div>
           </div>
 
           {form.startDate && (Number(localHoursCount) > 0 || Number(localDaysCount) > 0) && derived.endDate && (
-            <div className="flex gap-6 py-3 text-sm text-gray-600">
-              <span><strong className="text-gray-800">النهاية:</strong> {new Date(derived.endDate).toLocaleDateString('ar-EG')}</span>
-              <span><strong className="text-gray-800">المباشرة:</strong> {derived.returnDate}</span>
+            <div className="flex flex-wrap gap-4 py-3 px-3 rounded-xl bg-slate-50 text-sm text-gray-600">
+              <span><strong className="text-gray-800">تاريخ النهاية:</strong> {new Date(derived.endDate).toLocaleDateString('ar-EG')}</span>
+              <span><strong className="text-gray-800">العودة:</strong> {derived.returnDate}</span>
             </div>
           )}
+          </section>
 
-          <div>
+          <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 space-y-4">
+            <label className="block text-xs font-medium text-gray-500">السبب (اختياري)</label>
             <Input
               value={form.reason}
               onChange={(e) => setForm((f) => ({ ...f, reason: e.target.value }))}
               placeholder="السبب"
-              className="rounded-xl"
+              className="rounded-xl min-h-[44px]"
             />
-          </div>
+          </section>
 
           {balanceExceeded && (
-            <div className="flex items-center gap-2 py-2 text-red-600 text-sm">
+            <div className="flex items-center gap-2 py-3 px-4 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm">
               <AlertCircle className="h-4 w-4 shrink-0" />
               <span>رصيد غير كافٍ</span>
             </div>
