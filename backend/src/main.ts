@@ -9,8 +9,18 @@ async function bootstrap() {
   app.use(json({ limit: '10mb' }));
   app.use(urlencoded({ limit: '10mb', extended: true }));
 
+  const allowedOrigins = [
+    'http://localhost:3000',
+    ...(process.env.WEB_URL ? process.env.WEB_URL.split(',').map((o) => o.trim()).filter(Boolean) : []),
+  ];
   app.enableCors({
-    origin: process.env.WEB_URL || 'http://localhost:3000',
+    origin: (origin, callback) => {
+      if (!origin || allowedOrigins.includes(origin)) {
+        callback(null, true);
+      } else {
+        callback(null, false);
+      }
+    },
     credentials: true,
   });
 
