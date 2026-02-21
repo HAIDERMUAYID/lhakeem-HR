@@ -1,0 +1,158 @@
+// Employee Attendance & Shift Management System
+// Phase 1: Schema - Manager-Employee Hierarchy
+// Database: Supabase (PostgreSQL) via Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ===========================================
+// USER (with Manager-Employee self-relation)
+// ===========================================
+// Every User has a managerId -> points to another User.
+// A User can be a Manager (has many subordinates) and an Employee (has one manager).
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  jobTitle  String   @map("job_title")
+  managerId String?  @map("manager_id")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  // Self-referential: this User's direct manager
+  manager User?  @relation("ManagerEmployees", fields: [managerId], references: [id], onDelete: SetNull)
+  // This User's direct reports (employees they manage)
+  employees User[] @relation("ManagerEmployees")
+
+  workSchedules WorkSchedule[]
+  leaveRequests LeaveRequest[]
+  attendanceLogs AttendanceLog[]
+  fingerprints   EmployeeFingerprint[]
+
+  @@map("users")
+}
+
+// ===========================================
+// DEVICE (جهاز البصمة - fingerprint device)
+// ===========================================
+
+model Device {
+  id        String   @id @default(cuid())
+  name      String
+  code      String?  // e.g. "ADM-01"
+  location  String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  fingerprints EmployeeFingerprint[]
+
+  @@map("devices")
+}
+
+// ===========================================
+// EMPLOYEE FINGERPRINT (معرف البصمة على جهاز)
+// ===========================================
+// fingerprintId is unique per device only (same ID allowed on different devices).
+
+model EmployeeFingerprint {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  deviceId      String   @map("device_id")
+  fingerprintId String   @map("fingerprint_id") // as shown on the device
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device Device @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, fingerprintId])
+  @@map("employee_fingerprints")
+}
+
+// ===========================================
+// WORK SCHEDULE (per user + day of week)
+// ===========================================
+// dayOfWeek: 0=Sunday, 1=Monday, ..., 6=Saturday
+// If NO entry exists for a day -> treat as "Rest Day" (استراحة)
+// Unique constraint: one row per (userId, dayOfWeek)
+
+model WorkSchedule {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  dayOfWeek  Int      @map("day_of_week") // 0-6
+  startTime  String   @map("start_time")  // e.g. "08:00"
+  endTime    String   @map("end_time")    // e.g. "16:00"
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, dayOfWeek])
+  @@map("work_schedules")
+}
+
+// ===========================================
+// LEAVE REQUEST
+// ===========================================
+
+model LeaveRequest {
+  id        String       @id @default(cuid())
+  userId    String       @map("user_id")
+  type      String       // e.g. "Annual", "Sick", "Emergency"
+  startDate DateTime     @map("start_date")
+  endDate   DateTime     @map("end_date")
+  status    LeaveStatus  @default(PENDING)
+  notes     String?
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("leave_requests")
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ===========================================
+// ATTENDANCE LOG
+// ===========================================
+// status: PRESENT, ABSENT, REST_DAY (derived), etc.
+
+model AttendanceLog {
+  id          String           @id @default(cuid())
+  userId      String           @map("user_id")
+  date        DateTime         @db.Date
+  status      AttendanceStatus
+  checkInTime String?          @map("check_in_time")  // e.g. "08:15"
+  checkOutTime String?         @map("check_out_time") // e.g. "16:30"
+  notes       String?
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@map("attendance_logs")
+}
+
+enum AttendanceStatus {
+  PRESENT
+  ABSENT
+  REST_DAY      // استراحة - no schedule for this day
+  LEAVE         // approved leave
+  UNEXCUSED     // absent without leave/rest
+}

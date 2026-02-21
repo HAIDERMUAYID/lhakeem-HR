@@ -1,0 +1,34 @@
+# Render Blueprint - Al-Hakeem HR
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: alhakeem-api
+    runtime: node
+    rootDir: backend
+    buildCommand: npm install && npx prisma generate && npm run build
+    startCommand: npx prisma migrate deploy && npm run start:prod
+    envVars:
+      - key: DATABASE_URL
+        fromDatabase:
+          name: alhakeem-db
+          property: connectionString
+      - key: JWT_SECRET
+        generateValue: true
+      - key: NODE_ENV
+        value: production
+
+  - type: web
+    name: alhakeem-web
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm install && npm run build
+    startCommand: npm run start
+    envVars:
+      - key: NEXT_PUBLIC_API_URL
+        sync: false  # Set manually to your API URL on Render
+
+databases:
+  - name: alhakeem-db
+    databaseName: alhakeem_hr
+    plan: starter

@@ -1,0 +1,18 @@
+{
+  "name": "alhakeem-hr",
+  "version": "1.0.0",
+  "description": "نظام إدارة الإجازات والدوام والغيابات – مستشفى الحكيم",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "npm run dev --prefix backend",
+    "dev:web": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix backend && npm run build --prefix frontend",
+    "db:generate": "npm run prisma:generate --prefix backend",
+    "db:migrate": "npm run prisma:migrate --prefix backend",
+    "db:studio": "npm run prisma:studio --prefix backend"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

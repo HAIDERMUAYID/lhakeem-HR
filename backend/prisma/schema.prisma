@@ -1,0 +1,371 @@
+// Al-Hakeem HR - Prisma Schema
+// PostgreSQL Database
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// Run: npx prisma db seed
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===========================================
+// USERS & AUTH (الإداريون فقط)
+// ===========================================
+
+model User {
+  id           String   @id @default(cuid())
+  username     String?  @unique
+  email        String?  @unique
+  passwordHash String   @map("password_hash")
+  name         String
+  phone        String?
+  jobCode      String?  @map("job_code")
+  role         UserRole @default(MANAGER)
+  permissions  String[] @default([])
+  isActive     Boolean  @default(true) @map("is_active")
+  departmentId String?  @map("department_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  department            Department?                @relation(fields: [departmentId], references: [id])
+  auditLogs             AuditLog[]
+  managedEmployees      Employee[]                 @relation("EmployeeManagerUser")
+  managedDepartments    Department[]               @relation("DepartmentManager")
+  fingerprintDepartments UserDepartmentAssignment[]
+  absenceReportsCreated AbsenceReport[]
+  consolidationsApproved DailyConsolidation[]
+  scheduleApprovals     WorkSchedule[]            @relation("ScheduleApprovedBy")
+  leaveRequestsCreated  LeaveRequest[]            @relation("LeaveRequestCreatedBy")
+
+  @@map("users")
+}
+
+// أقسام مسؤول عنها (لموظف البصمة)
+model UserDepartmentAssignment {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  departmentId String   @map("department_id")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  user       User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  department Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, departmentId])
+  @@map("user_department_assignments")
+}
+
+enum UserRole {
+  ADMIN                // مدير النظام
+  LEAVE_MANAGER        // مدير الإجازات
+  LEAVE_OFFICER        // موظف إجازات
+  FINGERPRINT          // موظف بصمة
+  FINGERPRINT_MANAGER  // مدير البصمة
+  MANAGER              // مدير قسم
+  OFFICE               // إدارة
+}
+
+// ===========================================
+// EMPLOYEES (الموظفون - بدون حسابات)
+// ===========================================
+
+model Employee {
+  id              String       @id @default(cuid())
+  fullName        String       @map("full_name")
+  jobTitle        String       @map("job_title")
+  departmentId    String       @map("department_id")
+  managerId       String?      @map("manager_id")
+  managerUserId   String?      @map("manager_user_id")
+  importBatchId   String?      @map("import_batch_id")
+  workType        WorkType     @default(MORNING) @map("work_type")
+  leaveBalance    Decimal      @default(0) @map("leave_balance")
+  balanceStartDate DateTime?   @map("balance_start_date")
+  isActive        Boolean      @default(true) @map("is_active")
+  createdAt       DateTime     @default(now()) @map("created_at")
+  updatedAt       DateTime     @updatedAt @map("updated_at")
+
+  department     Department    @relation(fields: [departmentId], references: [id])
+  manager        Employee?     @relation("EmployeeManager", fields: [managerId], references: [id])
+  subordinates   Employee[]    @relation("EmployeeManager")
+  managerUser    User?         @relation("EmployeeManagerUser", fields: [managerUserId], references: [id], onDelete: SetNull)
+  importBatch    ImportBatch?  @relation(fields: [importBatchId], references: [id], onDelete: SetNull)
+  leaveRequests  LeaveRequest[]
+  absences       Absence[]
+  workSchedules  WorkSchedule[]
+  fingerprints   EmployeeFingerprint[]
+
+  @@index([fullName])
+  @@index([departmentId, isActive])
+  @@map("employees")
+}
+
+model ImportBatch {
+  id           String     @id @default(cuid())
+  fileName     String?    @map("file_name")
+  importedCount Int       @map("imported_count")
+  failedCount   Int       @map("failed_count")
+  createdAt    DateTime   @default(now()) @map("created_at")
+
+  employees Employee[]
+
+  @@map("import_batches")
+}
+
+enum WorkType {
+  MORNING   // دوام صباحي
+  SHIFTS    // خفارات
+}
+
+// ===========================================
+// DEPARTMENTS
+// ===========================================
+
+model Department {
+  id            String   @id @default(cuid())
+  name          String
+  code          String?  @unique
+  description   String?
+  managerUserId String?  @map("manager_user_id")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  employees    Employee[]
+  users        User[]
+  managerUser  User?     @relation("DepartmentManager", fields: [managerUserId], references: [id], onDelete: SetNull)
+  fingerprintAssignments UserDepartmentAssignment[]
+
+  @@map("departments")
+}
+
+// ===========================================
+// LEAVE TYPES & REQUESTS
+// ===========================================
+
+model LeaveType {
+  id              String   @id @default(cuid())
+  name            String
+  nameAr          String   @map("name_ar")
+  deductFromBalance Boolean @default(true) @map("deduct_from_balance")
+  requiresApproval Boolean @default(true) @map("requires_approval")
+  annualAllowance  Int?    @map("annual_allowance")
+  monthlyAccrual   Decimal? @map("monthly_accrual")
+  isActive        Boolean  @default(true) @map("is_active")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  leaveRequests LeaveRequest[]
+
+  @@map("leave_types")
+}
+
+model LeaveRequest {
+  id           String        @id @default(cuid())
+  employeeId   String        @map("employee_id")
+  leaveTypeId  String        @map("leave_type_id")
+  startDate    DateTime      @map("start_date")
+  endDate      DateTime      @map("end_date")
+  daysCount    Int           @map("days_count")
+  hoursCount   Decimal?      @map("hours_count")
+  reason       String?
+  status       LeaveStatus   @default(PENDING)
+  approvedBy   String?       @map("approved_by")
+  approvedAt   DateTime?     @map("approved_at")
+  createdById  String?       @map("created_by_id")
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  employee   Employee   @relation(fields: [employeeId], references: [id])
+  leaveType  LeaveType  @relation(fields: [leaveTypeId], references: [id])
+  createdBy  User?      @relation("LeaveRequestCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, status, startDate, endDate])
+  @@map("leave_requests")
+}
+
+enum LeaveStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+// ===========================================
+// ABSENCES
+// ===========================================
+
+model Absence {
+  id         String       @id @default(cuid())
+  employeeId String       @map("employee_id")
+  date       DateTime
+  reason     String?
+  status     AbsenceStatus @default(RECORDED)
+  recordedBy String       @map("recorded_by")
+  reportId   String?      @map("report_id")
+  cancelledAt DateTime?   @map("cancelled_at")
+  cancelledBy String?     @map("cancelled_by")
+  createdAt  DateTime     @default(now()) @map("created_at")
+  updatedAt  DateTime     @updatedAt @map("updated_at")
+
+  employee Employee      @relation(fields: [employeeId], references: [id])
+  report   AbsenceReport? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  @@index([employeeId, date])
+  @@unique([reportId, employeeId])
+  @@map("absences")
+}
+
+enum AbsenceStatus {
+  RECORDED
+  CANCELLED
+}
+
+// كشف غياب (من موظف بصمة ليوم محدد)
+model AbsenceReport {
+  id          String            @id @default(cuid())
+  reportDate  DateTime          @map("report_date")
+  createdByUserId String         @map("created_by_user_id")
+  status      AbsenceReportStatus @default(DRAFT) @map("status")
+  submittedAt DateTime?         @map("submitted_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+
+  createdBy User      @relation(fields: [createdByUserId], references: [id])
+  absences  Absence[]
+
+  @@unique([createdByUserId, reportDate])
+  @@map("absence_reports")
+}
+
+enum AbsenceReportStatus {
+  DRAFT
+  SUBMITTED
+}
+
+// كشف يومي معتمد (بعد مصادقة مدير البصمة)
+model DailyConsolidation {
+  id             String   @id @default(cuid())
+  reportDate     DateTime @map("report_date")
+  approvedByUserId String @map("approved_by_user_id")
+  approvedAt     DateTime @default(now()) @map("approved_at")
+
+  approvedBy User @relation(fields: [approvedByUserId], references: [id])
+
+  @@unique([reportDate])
+  @@map("daily_consolidations")
+}
+
+// ===========================================
+// HOLIDAYS
+// ===========================================
+
+model Holiday {
+  id          String      @id @default(cuid())
+  name        String
+  nameAr      String      @map("name_ar")
+  date        DateTime
+  appliesTo   HolidayScope @default(ALL) @map("applies_to")
+  departmentIds String?   @map("department_ids")
+  createdAt   DateTime    @default(now()) @map("created_at")
+  updatedAt   DateTime    @updatedAt @map("updated_at")
+
+  @@index([date])
+  @@map("holidays")
+}
+
+enum HolidayScope {
+  MORNING_ONLY  // دوام صباحي فقط
+  ALL           // الكل
+  CUSTOM        // حسب الأقسام
+}
+
+// ===========================================
+// WORK SCHEDULES
+// ===========================================
+
+enum ScheduleStatus {
+  PENDING   // معلق - بانتظار المصادقة
+  APPROVED  // معتمد
+}
+
+model WorkSchedule {
+  id             String         @id @default(cuid())
+  employeeId     String         @map("employee_id")
+  year           Int            @map("year")
+  month          Int            @map("month")   // 1–12
+  workType       WorkType       @map("work_type")
+  shiftPattern   String?        @map("shift_pattern")   // 1x1 | 1x2 | 1x3 | FIXED | null (صباحي)
+  daysOfWeek     String         @map("days_of_week")   // FIXED/صباحي: "0,1,2,3,4"
+  cycleStartDate DateTime?      @map("cycle_start_date") // للخفر 1x1,1x2,1x3: أول يوم عمل
+  startTime      String         @map("start_time")
+  endTime        String         @map("end_time")
+  breakStart     String?        @map("break_start")
+  breakEnd       String?        @map("break_end")
+  effectiveFrom  DateTime?      @map("effective_from")
+  status         ScheduleStatus @default(PENDING) @map("status")
+  approvedById   String?        @map("approved_by_id")
+  approvedAt     DateTime?      @map("approved_at")
+  createdAt      DateTime       @default(now()) @map("created_at")
+  updatedAt      DateTime       @updatedAt @map("updated_at")
+
+  employee   Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  approvedBy User?     @relation("ScheduleApprovedBy", fields: [approvedById], references: [id], onDelete: SetNull)
+
+  @@unique([employeeId, year, month])
+  @@map("work_schedules")
+}
+
+// ===========================================
+// AUDIT LOG
+// ===========================================
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String   @map("user_id")
+  action     String
+  entity     String
+  entityId   String?  @map("entity_id")
+  details    Json?
+  ipAddress  String?  @map("ip_address")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@map("audit_logs")
+}
+
+// ===========================================
+// FINGERPRINT DEVICES (أجهزة البصمة)
+// ===========================================
+
+model Device {
+  id        String   @id @default(cuid())
+  name      String
+  code      String?
+  location  String?
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  fingerprints EmployeeFingerprint[]
+
+  @@map("devices")
+}
+
+// معرف البصمة على جهاز (فريد لكل جهاز فقط)
+model EmployeeFingerprint {
+  id            String   @id @default(cuid())
+  employeeId    String   @map("employee_id")
+  deviceId      String   @map("device_id")
+  fingerprintId String   @map("fingerprint_id")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  employee Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  device   Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@unique([deviceId, fingerprintId])
+  @@map("employee_fingerprints")
+}
