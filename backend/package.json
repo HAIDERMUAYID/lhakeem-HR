@@ -3,8 +3,8 @@
   "version": "1.0.0",
   "description": "Al-Hakeem HR API",
   "scripts": {
-    "build": "nest build",
-    "dev": "nest start --watch",
+    "build": "npx nest build",
+    "dev": "npx nest start --watch",
     "start": "node dist/main",
     "start:prod": "node dist/main",
     "prisma:generate": "prisma generate",
