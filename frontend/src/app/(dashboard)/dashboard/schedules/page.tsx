@@ -129,7 +129,17 @@ export default function SchedulesPage() {
     startTime: '08:00',
     endTime: '15:00',
   });
+  /** قيم محلية لوقت البداية/النهاية — لكتابة سلسة على الجوال */
+  const [localStartTime, setLocalStartTime] = useState('08:00');
+  const [localEndTime, setLocalEndTime] = useState('15:00');
   const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+
+  useEffect(() => {
+    if (addOpen) {
+      setLocalStartTime(form.startTime);
+      setLocalEndTime(form.endTime);
+    }
+  }, [addOpen, form.startTime, form.endTime]);
   const [copyFromForm, setCopyFromForm] = useState({
     sourceYear: lastMonth.getFullYear(),
     sourceMonth: lastMonth.getMonth(),
@@ -333,10 +343,11 @@ export default function SchedulesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    const payload = { ...form, startTime: localStartTime, endTime: localEndTime };
     if (selectedEmployeeIds.length > 1) {
-      bulkMutation.mutate({ ...form, employeeIds: selectedEmployeeIds });
+      bulkMutation.mutate({ ...payload, employeeIds: selectedEmployeeIds });
     } else if (selectedEmployeeIds.length === 1) {
-      addMutation.mutate({ ...form, employeeId: selectedEmployeeIds[0] });
+      addMutation.mutate({ ...payload, employeeId: selectedEmployeeIds[0] });
     } else {
       toast.error('اختر موظفاً واحداً على الأقل');
     }
@@ -636,21 +647,34 @@ export default function SchedulesPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">من</label>
-                  <Input type="time" value={form.startTime} onChange={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))} />
+                  <Input
+                    type="time"
+                    value={localStartTime}
+                    onChange={(e) => setLocalStartTime(e.target.value)}
+                    onBlur={(e) => setForm((f) => ({ ...f, startTime: e.target.value }))}
+                  />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">إلى</label>
-                  <Input type="time" value={form.endTime} onChange={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))} />
+                  <Input
+                    type="time"
+                    value={localEndTime}
+                    onChange={(e) => setLocalEndTime(e.target.value)}
+                    onBlur={(e) => setForm((f) => ({ ...f, endTime: e.target.value }))}
+                  />
                 </div>
               </div>
 
-              {calcMonthlyHours(form) != null && (
-                <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
-                  <p className="text-sm font-semibold text-emerald-800">
-                    هذا الدوام يغطي: <strong>{formatHoursMinutes(calcMonthlyHours(form)!)}</strong> عمل شهرياً للموظف الواحد
-                  </p>
-                </div>
-              )}
+              {(() => {
+                const hours = calcMonthlyHours({ ...form, startTime: localStartTime, endTime: localEndTime });
+                return hours != null ? (
+                  <div className="p-4 rounded-xl bg-emerald-50 border border-emerald-200">
+                    <p className="text-sm font-semibold text-emerald-800">
+                      هذا الدوام يغطي: <strong>{formatHoursMinutes(hours)}</strong> عمل شهرياً للموظف الواحد
+                    </p>
+                  </div>
+                ) : null;
+              })()}
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">نسخ من جدول موجود</label>

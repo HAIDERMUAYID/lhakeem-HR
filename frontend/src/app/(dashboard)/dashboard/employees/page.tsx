@@ -74,12 +74,17 @@ const formDefaults = {
   departmentId: '',
   managerUserId: '' as string,
   workType: 'MORNING' as 'MORNING' | 'SHIFTS',
-  leaveBalance: 0,
+  /** يُخزَّن كنص لتفادي أخطاء الإدخال على الجوال (مثلاً 2 تُكتب 20) */
+  leaveBalance: '' as string,
   balanceStartDate: '' as string,
   isActive: true,
 };
 
-type EmployeeFormBody = Omit<typeof formDefaults, 'managerUserId'> & { managerUserId: string | null };
+/** نوع الحقول المرسلة للـ API (leaveBalance كرقم) */
+type EmployeeFormBody = Omit<typeof formDefaults, 'managerUserId' | 'leaveBalance'> & {
+  managerUserId: string | null;
+  leaveBalance: number;
+};
 
 const PAGE_SIZES = [10, 25, 50] as const;
 
@@ -119,6 +124,8 @@ export default function EmployeesPage() {
   const initialEditFingerprintIds = useRef<string[]>([]);
   const [editFpDeviceId, setEditFpDeviceId] = useState('');
   const [editFpId, setEditFpId] = useState('');
+  /** ref لحقل الرصيد — حقل غير خاضع للتحكم (uncontrolled) لتفادي اختفاء المؤشر عند الكتابة على الجوال */
+  const leaveBalanceInputRef = useRef<HTMLInputElement>(null);
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
 
@@ -355,7 +362,7 @@ export default function EmployeesPage() {
       departmentId: emp.department.id,
       managerUserId: emp.managerUser?.id ?? '',
       workType: (emp.workType === 'SHIFTS' ? 'SHIFTS' : 'MORNING') as 'MORNING' | 'SHIFTS',
-      leaveBalance: Number(emp.leaveBalance) || 0,
+      leaveBalance: String(Number(emp.leaveBalance) || 0),
       balanceStartDate: startDate,
       isActive: emp.isActive,
     });
@@ -482,7 +489,12 @@ export default function EmployeesPage() {
     </div>
   );
 
-  const FormFields = ({ prepend }: { prepend?: React.ReactNode } = {}) => (
+  const getLeaveBalanceValue = useCallback(() => {
+    const raw = leaveBalanceInputRef.current?.value ?? '';
+    return raw.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+  }, []);
+
+  const FormFields = ({ prepend, leaveBalanceKey }: { prepend?: React.ReactNode; leaveBalanceKey?: string } = {}) => (
     <div className="grid grid-cols-1 sm:grid-cols-2 gap-5">
       {prepend != null && <div className="col-span-2">{prepend}</div>}
       <FormField label="الاسم الرباعي واللقب" icon={UserCircle}>
@@ -530,18 +542,30 @@ export default function EmployeesPage() {
       </FormField>
       <FormField label="الرصيد التراكمي (عدد الأيام)">
         <Input
-          type="number"
-          min={0}
-          step={0.5}
-          value={form.leaveBalance}
-          onChange={(e) => setForm((f) => ({ ...f, leaveBalance: parseInt(e.target.value, 10) || 0 }))}
+          ref={leaveBalanceInputRef}
+          key={leaveBalanceKey ?? 'leave-balance'}
+          inputMode="decimal"
+          type="text"
+          defaultValue={String(form.leaveBalance ?? '')}
+          onInput={(e) => {
+            const el = e.target as HTMLInputElement;
+            const v = el.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+            if (el.value !== v) el.value = v;
+          }}
+          onBlur={(e) => {
+            const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+            setForm((f) => ({ ...f, leaveBalance: v }));
+          }}
+          placeholder="0"
         />
       </FormField>
       <FormField label="هذا الرصيد صحيح لغاية تاريخ (إجباري عند إدخال رصيد)">
         <Input
           type="date"
+          inputMode="none"
+          autoComplete="off"
           value={form.balanceStartDate}
-          onChange={(e) => setForm((f) => ({ ...f, balanceStartDate: e.target.value }))}
+          onChange={(e) => setForm((f) => ({ ...f, balanceStartDate: e.target.value || '' }))}
           placeholder="اختر التاريخ"
         />
         <p className="text-xs text-gray-500 mt-1">
@@ -990,24 +1014,27 @@ export default function EmployeesPage() {
           onSubmit={(e) => {
             e.preventDefault();
             if (!editingId) return;
-            const balanceNum = Number(form.leaveBalance) || 0;
+            const balanceNum = Number(getLeaveBalanceValue()) || 0;
             if (balanceNum > 0 && !form.balanceStartDate?.trim()) {
               toast.error('عند إدخال رصيد يجب اختيار «هذا الرصيد صحيح لغاية تاريخ».');
               return;
             }
+            const { leaveBalance: _lb, ...formRest } = form;
             editMutation.mutate({
               id: editingId,
               body: {
-                ...form,
+                ...formRest,
+                leaveBalance: balanceNum,
                 managerUserId: form.managerUserId || null,
                 workType: form.workType || 'MORNING',
                 balanceStartDate: form.balanceStartDate?.trim() ?? '',
-              },
+              } as EmployeeFormBody,
             });
           }}
           className="space-y-6"
         >
           <FormFields
+            leaveBalanceKey={editingId ? `leave-balance-edit-${editingId}` : undefined}
             prepend={
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">
@@ -1098,23 +1125,26 @@ export default function EmployeesPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            const balanceNum = Number(form.leaveBalance) || 0;
+            const balanceNum = Number(getLeaveBalanceValue()) || 0;
             if (balanceNum > 0 && !form.balanceStartDate?.trim()) {
               toast.error('عند إدخال رصيد يجب اختيار «هذا الرصيد صحيح لغاية تاريخ».');
               return;
             }
+            const { leaveBalance: _lb2, ...formRestAdd } = form;
             addMutation.mutate({
               body: {
-                ...form,
+                ...formRestAdd,
+                leaveBalance: balanceNum,
                 managerUserId: form.managerUserId || null,
                 workType: form.workType || 'MORNING',
-              },
+              } as EmployeeFormBody,
               fingerprints: pendingFingerprints,
             });
           }}
           className="space-y-6"
         >
           <FormFields
+            leaveBalanceKey="leave-balance-add"
             prepend={
               <div>
                 <label className="flex items-center gap-2 text-sm font-medium text-gray-700 mb-1.5">

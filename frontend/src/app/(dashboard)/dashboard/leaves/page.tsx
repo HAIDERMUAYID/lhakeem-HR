@@ -231,12 +231,16 @@ export default function LeavesPage() {
   const [selectedRequest, setSelectedRequest] = useState<LeaveRequest | null>(null);
   const [canApprove, setCanApprove] = useState(false);
   const [useHours, setUseHours] = useState(true);
+  /** قيم محلية لعدد الأيام/الساعات — تحديث عند كل ضغطة فقط لكتابة سلسة على الجوال */
+  const [localDaysCount, setLocalDaysCount] = useState('2');
+  const [localHoursCount, setLocalHoursCount] = useState('14');
+  /** أيام/ساعات كنص لتفادي أخطاء الإدخال على الجوال (مثلاً 2 تُكتب 20) */
   const [form, setForm] = useState({
     employeeId: '',
     leaveTypeId: '',
     startDate: '',
-    hoursCount: 14,
-    daysCount: 2,
+    hoursCount: '14',
+    daysCount: '2',
     reason: '',
   });
   const queryClient = useQueryClient();
@@ -290,6 +294,13 @@ export default function LeavesPage() {
       setSelectedEmployeeLabel('');
     }
   }, [addOpen]);
+
+  useEffect(() => {
+    if (addOpen) {
+      setLocalDaysCount(form.daysCount);
+      setLocalHoursCount(form.hoursCount);
+    }
+  }, [addOpen, form.daysCount, form.hoursCount]);
 
   const { data: leaveDetails } = useQuery({
     queryKey: ['leave-request', detailsId],
@@ -410,8 +421,8 @@ export default function LeavesPage() {
         employeeId: '',
         leaveTypeId: '',
         startDate: '',
-        hoursCount: 14,
-        daysCount: 2,
+        hoursCount: '14',
+        daysCount: '2',
         reason: '',
       });
       toast.success('تم إرسال طلب الإجازة بنجاح');
@@ -496,7 +507,7 @@ export default function LeavesPage() {
     };
   };
 
-  const requiredHours = useHours ? form.hoursCount : form.daysCount * HOURS_PER_DAY;
+  const requiredHours = useHours ? (Number(localHoursCount) || 0) : (Number(localDaysCount) || 0) * HOURS_PER_DAY;
   const requiredDays = Math.ceil(requiredHours / HOURS_PER_DAY) || 1;
   const derived = form.startDate ? calcEndAndReturn(form.startDate, requiredHours) : { endDate: '', returnDate: '' };
 
@@ -994,8 +1005,8 @@ export default function LeavesPage() {
               employeeId: form.employeeId,
               leaveTypeId: form.leaveTypeId,
               startDate: form.startDate,
-              hoursCount: useHours ? form.hoursCount : undefined,
-              daysCount: useHours ? undefined : form.daysCount,
+              hoursCount: useHours ? (Number(localHoursCount) || 0) : undefined,
+              daysCount: useHours ? undefined : (Number(localDaysCount) || 0),
               reason: form.reason || undefined,
             });
           }}
@@ -1065,21 +1076,32 @@ export default function LeavesPage() {
                     <Button
                       key={p.hours}
                       type="button"
-                      variant={form.hoursCount === p.hours ? 'default' : 'outline'}
+                      variant={Number(localHoursCount) === p.hours ? 'default' : 'outline'}
                       size="sm"
                       className="rounded-lg"
-                      onClick={() => setForm((f) => ({ ...f, hoursCount: p.hours }))}
+                      onClick={() => {
+                        const s = String(p.hours);
+                        setLocalHoursCount(s);
+                        setForm((f) => ({ ...f, hoursCount: s }));
+                      }}
                     >
                       {p.label}
                     </Button>
                   ))}
                 </div>
                 <Input
-                  type="number"
-                  min={0.5}
-                  step={0.5}
-                  value={form.hoursCount}
-                  onChange={(e) => setForm((f) => ({ ...f, hoursCount: parseFloat(e.target.value) || 0 }))}
+                  inputMode="decimal"
+                  type="text"
+                  value={localHoursCount}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                    setLocalHoursCount(v);
+                  }}
+                  onBlur={(e) => {
+                    const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                    setForm((f) => ({ ...f, hoursCount: v }));
+                  }}
+                  placeholder="14"
                   required
                   className="rounded-xl mt-2"
                 />
@@ -1088,10 +1110,18 @@ export default function LeavesPage() {
               <div>
                 <label className="block text-xs font-medium text-gray-500 mb-1.5">عدد الأيام</label>
                 <Input
-                  type="number"
-                  min={1}
-                  value={form.daysCount}
-                  onChange={(e) => setForm((f) => ({ ...f, daysCount: parseInt(e.target.value) || 0 }))}
+                  inputMode="numeric"
+                  type="text"
+                  value={localDaysCount}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    setLocalDaysCount(v);
+                  }}
+                  onBlur={(e) => {
+                    const v = e.target.value.replace(/\D/g, '');
+                    setForm((f) => ({ ...f, daysCount: v }));
+                  }}
+                  placeholder="2"
                   required
                   className="rounded-xl"
                 />
@@ -1101,15 +1131,17 @@ export default function LeavesPage() {
               <label className="block text-xs font-medium text-gray-500 mb-1.5">تاريخ البداية</label>
               <Input
                 type="date"
+                inputMode="none"
+                autoComplete="off"
                 value={form.startDate}
-                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value || '' }))}
                 required
                 className="rounded-xl"
               />
             </div>
           </div>
 
-          {form.startDate && (form.hoursCount > 0 || form.daysCount > 0) && derived.endDate && (
+          {form.startDate && (Number(localHoursCount) > 0 || Number(localDaysCount) > 0) && derived.endDate && (
             <div className="flex gap-6 py-3 text-sm text-gray-600">
               <span><strong className="text-gray-800">النهاية:</strong> {new Date(derived.endDate).toLocaleDateString('ar-EG')}</span>
               <span><strong className="text-gray-800">المباشرة:</strong> {derived.returnDate}</span>

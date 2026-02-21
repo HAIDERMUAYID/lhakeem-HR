@@ -35,7 +35,17 @@ export default function LeaveTypesPage() {
     annualAllowance: '' as string | number,
     monthlyAccrual: '' as string | number,
   });
+  /** قيم محلية للحقول الرقمية — لكتابة سلسة على الجوال */
+  const [localAnnualAllowance, setLocalAnnualAllowance] = useState('');
+  const [localMonthlyAccrual, setLocalMonthlyAccrual] = useState('');
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (addOpen || editOpen) {
+      setLocalAnnualAllowance(String(form.annualAllowance ?? ''));
+      setLocalMonthlyAccrual(String(form.monthlyAccrual ?? ''));
+    }
+  }, [addOpen, editOpen, form.annualAllowance, form.monthlyAccrual]);
 
   useEffect(() => {
     const u = localStorage.getItem('user');
@@ -126,7 +136,11 @@ export default function LeaveTypesPage() {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            addMutation.mutate(form);
+            addMutation.mutate({
+              ...form,
+              annualAllowance: localAnnualAllowance,
+              monthlyAccrual: localMonthlyAccrual,
+            });
           }}
           className="space-y-4"
         >
@@ -151,11 +165,37 @@ export default function LeaveTypesPage() {
           <div className="grid grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">الرصيد السنوي</label>
-              <Input type="number" value={form.annualAllowance} onChange={(e) => setForm((f) => ({ ...f, annualAllowance: e.target.value }))} />
+              <Input
+                inputMode="decimal"
+                type="text"
+                value={localAnnualAllowance}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                  setLocalAnnualAllowance(v);
+                }}
+                onBlur={(e) => {
+                  const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                  setForm((f) => ({ ...f, annualAllowance: v === '' ? '' : v }));
+                }}
+                placeholder="—"
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">التراكم الشهري</label>
-              <Input type="number" step="0.5" value={form.monthlyAccrual} onChange={(e) => setForm((f) => ({ ...f, monthlyAccrual: e.target.value }))} />
+              <Input
+                inputMode="decimal"
+                type="text"
+                value={localMonthlyAccrual}
+                onChange={(e) => {
+                  const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                  setLocalMonthlyAccrual(v);
+                }}
+                onBlur={(e) => {
+                  const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                  setForm((f) => ({ ...f, monthlyAccrual: v === '' ? '' : v }));
+                }}
+                placeholder="—"
+              />
             </div>
           </div>
           <div className="flex gap-2 pt-4">
@@ -170,7 +210,10 @@ export default function LeaveTypesPage() {
           <form
             onSubmit={(e) => {
               e.preventDefault();
-              updateMutation.mutate({ id: editing.id, body: form });
+              updateMutation.mutate({
+                id: editing.id,
+                body: { ...form, annualAllowance: localAnnualAllowance, monthlyAccrual: localMonthlyAccrual },
+              });
             }}
             className="space-y-4"
           >
@@ -195,11 +238,37 @@ export default function LeaveTypesPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">الرصيد السنوي</label>
-                <Input type="number" value={form.annualAllowance} onChange={(e) => setForm((f) => ({ ...f, annualAllowance: e.target.value }))} />
+                <Input
+                  inputMode="decimal"
+                  type="text"
+                  value={localAnnualAllowance}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                    setLocalAnnualAllowance(v);
+                  }}
+                  onBlur={(e) => {
+                    const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                    setForm((f) => ({ ...f, annualAllowance: v === '' ? '' : v }));
+                  }}
+                  placeholder="—"
+                />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">التراكم الشهري</label>
-                <Input type="number" step="0.5" value={form.monthlyAccrual} onChange={(e) => setForm((f) => ({ ...f, monthlyAccrual: e.target.value }))} />
+                <Input
+                  inputMode="decimal"
+                  type="text"
+                  value={localMonthlyAccrual}
+                  onChange={(e) => {
+                    const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                    setLocalMonthlyAccrual(v);
+                  }}
+                  onBlur={(e) => {
+                    const v = e.target.value.replace(/[^\d.]/g, '').replace(/(\..*)\./g, '$1');
+                    setForm((f) => ({ ...f, monthlyAccrual: v === '' ? '' : v }));
+                  }}
+                  placeholder="—"
+                />
               </div>
             </div>
             <div className="flex gap-2 pt-4">

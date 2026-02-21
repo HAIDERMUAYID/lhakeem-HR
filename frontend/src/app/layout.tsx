@@ -15,6 +15,10 @@ export const metadata: Metadata = {
   description: 'نظام إدارة الإجازات والدوام والغيابات',
   manifest: '/manifest.json',
   appleWebApp: { capable: true, title: 'الحكيم HR' },
+  icons: {
+    icon: '/hospital-logo.png',
+    apple: '/hospital-logo.png',
+  },
 };
 
 export const viewport = {
