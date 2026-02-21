@@ -93,6 +93,7 @@
   - `DATABASE_URL` = Internal Database URL من الخطوة 1
   - `JWT_SECRET` = قيمة سرية طويلة (أو Generate)
   - `NODE_ENV` = `production`
+  - `WEB_URL` = رابط الواجهة (مثل `https://alhakeem-web.onrender.com`) حتى يقبل الـ API طلبات CORS من الواجهة.
 - احفظ الرابط النهائي للخدمة (مثل `https://alhakeem-api.onrender.com`).
 
 #### 3. خدمة الواجهة (Frontend)
@@ -134,3 +135,29 @@ npx prisma db seed
 - **الحل:** إنشاء **مشروع جديد** على Render (قاعدة بيانات + خدمة API + خدمة ويب للواجهة) وربط المستودع، ثم تعيين `NEXT_PUBLIC_API_URL` للواجهة. تطبيقك الحالي يبقى على خدمته كما هي.
 
 إذا أردت، يمكن توضيح خطوة معينة (مثلاً فقط Blueprint أو فقط المتغيرات) حسب ما تراه في لوحة Render.
+
+---
+
+## استكشاف الأخطاء
+
+### تسجيل الدخول يعيد "Internal server error" (500)
+
+1. **تحقق من صحة الـ API وقاعدة البيانات:**  
+   افتح في المتصفح:  
+   `https://<رابط-خدمة-API>.onrender.com/api/health`  
+   إذا ظهر `"database":"disconnected"` فالمشكلة من الاتصال بقاعدة البيانات: تحقق من `DATABASE_URL` في Environment لخدمة الـ API (Internal Database URL من قاعدة Render).
+
+2. **سجلات الـ API (Logs):**  
+   في Render → خدمة الـ API → **Logs** ابحث عن رسالة الخطأ عند محاولة الدخول (مثلاً خطأ Prisma أو اتصال DB).
+
+3. **متغير WEB_URL:**  
+   تأكد أن في Environment لخدمة الـ API يوجد:  
+   `WEB_URL=https://alhakeem-web.onrender.com`  
+   (أو رابط الواجهة الفعلي). بدونه قد يرفض المتصفح الطلب بسبب CORS (عادة يظهر خطأ في الشبكة وليس 500؛ لكن من الأفضل تعيينه).
+
+4. **الجداول والـ Seed:**  
+   تأكد أن `npx prisma migrate deploy` نجح عند بدء الخدمة، وأنك شغّلت `npx prisma db seed` مرة واحدة لإنشاء المستخدم الافتراضي.
+
+### تحذيرات Next.js (themeColor / viewport في favicon.ico)
+
+هذه التحذيرات تُصلَح في الكود (تصدير `viewport` منفصل في `layout.tsx`). بعد دفع التعديلات وإعادة النشر (Redeploy) لخدمة الواجهة، يجب أن تختفي. إن استمرت، جرّب **Clear build cache & deploy** من لوحة Render لخدمة alhakeem-web.

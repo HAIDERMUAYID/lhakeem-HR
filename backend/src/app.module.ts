@@ -17,11 +17,13 @@ import { AttendanceValidationModule } from './attendance-validation/attendance-v
 import { AbsenceReportsModule } from './absence-reports/absence-reports.module';
 import { DevicesModule } from './devices/devices.module';
 import { FingerprintCalendarModule } from './fingerprint-calendar/fingerprint-calendar.module';
+import { HealthModule } from './health/health.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     PrismaModule,
+    HealthModule,
     AuditModule,
     AuthModule,
     UsersModule,

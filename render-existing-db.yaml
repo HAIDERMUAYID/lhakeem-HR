@@ -16,6 +16,8 @@ services:
         generateValue: true
       - key: NODE_ENV
         value: production
+      - key: WEB_URL
+        sync: false   # ضعه يدوياً، مثال: https://alhakeem-web.onrender.com (لـ CORS)
 
   - type: web
     name: alhakeem-web

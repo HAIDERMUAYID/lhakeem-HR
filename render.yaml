@@ -17,6 +17,8 @@ services:
         generateValue: true
       - key: NODE_ENV
         value: production
+      - key: WEB_URL
+        sync: false  # Set to frontend URL, e.g. https://alhakeem-web.onrender.com (for CORS)
 
   - type: web
     name: alhakeem-web
