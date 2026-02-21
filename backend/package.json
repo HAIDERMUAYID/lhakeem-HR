@@ -5,13 +5,14 @@
   "scripts": {
     "build": "npx nest build",
     "dev": "npx nest start --watch",
-    "start": "node dist/main",
-    "start:prod": "node dist/main",
+    "start": "node dist/src/main.js",
+    "start:prod": "node dist/src/main.js",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
     "prisma:studio": "prisma studio",
-    "prisma:seed": "npx ts-node prisma/seed.ts"
+    "prisma:seed": "npx ts-node prisma/seed.ts",
+    "db:resolve-all": "bash scripts/resolve-migrations.sh"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",
