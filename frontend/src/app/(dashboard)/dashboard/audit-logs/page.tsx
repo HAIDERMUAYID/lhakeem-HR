@@ -98,7 +98,7 @@ export default function AuditLogsPage() {
               <select
                 value={entityFilter}
                 onChange={(e) => setEntityFilter(e.target.value)}
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2 min-w-[140px] text-sm"
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 min-w-[140px] text-sm min-h-[44px]"
               >
                 <option value="">الكل</option>
                 {Object.entries(entityLabels).map(([k, v]) => (
@@ -111,7 +111,7 @@ export default function AuditLogsPage() {
               <select
                 value={actionFilter}
                 onChange={(e) => setActionFilter(e.target.value)}
-                className="rounded-xl border border-gray-200 bg-white px-3 py-2 min-w-[140px] text-sm"
+                className="rounded-xl border border-gray-200 bg-white px-3 py-2 min-w-[140px] text-sm min-h-[44px]"
               >
                 <option value="">الكل</option>
                 {Object.entries(actionLabels).map(([k, v]) => (
@@ -147,6 +147,7 @@ export default function AuditLogsPage() {
                 setToDate('');
                 setPage(1);
               }}
+              className="min-h-[44px]"
             >
               مسح الفلاتر
             </Button>
@@ -175,7 +176,7 @@ export default function AuditLogsPage() {
               {logs.map((log, i) => {
                 const href = getAuditLink(log);
                 const content = (
-                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 hover:bg-gray-50/50">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 hover:bg-gray-50/50 min-h-[52px]">
                     <div className="flex items-center gap-4">
                       <div className="h-10 w-10 rounded-xl bg-primary-100 flex items-center justify-center shrink-0">
                         <FileText className="h-5 w-5 text-primary-600" />

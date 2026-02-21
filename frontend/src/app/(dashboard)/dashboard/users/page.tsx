@@ -268,7 +268,7 @@ export default function UsersPage() {
                     )}
                   </div>
                   <CanDo permission="USERS_MANAGE">
-                    <Button variant="secondary" size="sm" onClick={() => openEdit(user)}>
+                    <Button variant="secondary" size="sm" onClick={() => openEdit(user)} className="min-h-[44px]">
                       <Shield className="h-4 w-4 ml-1" />
                       الصلاحيات
                     </Button>

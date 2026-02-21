@@ -365,17 +365,17 @@ export default function SchedulesPage() {
             </p>
           </div>
           <div className="flex flex-wrap gap-2">
-            <Button variant="outline" asChild className="gap-2">
+            <Button variant="outline" asChild className="gap-2 min-h-[44px]">
               <Link href="/dashboard/schedules/official-report">
                 <FileText className="h-4 w-4" />
                 تقرير جدول الدوام الرسمي
               </Link>
             </Button>
-            <Button variant="outline" onClick={() => setCopyMonthOpen(true)} className="gap-2">
+            <Button variant="outline" onClick={() => setCopyMonthOpen(true)} className="gap-2 min-h-[44px]">
               <CopyPlus className="h-4 w-4" />
               نسخ من شهر سابق
             </Button>
-            <Button onClick={() => setAddOpen(true)} className="gap-2">
+            <Button onClick={() => setAddOpen(true)} className="gap-2 min-h-[44px]">
               <Plus className="h-5 w-5" />
               إضافة / تعديل جدول
             </Button>
@@ -395,7 +395,7 @@ export default function SchedulesPage() {
                 <select
                   value={year}
                   onChange={(e) => setYear(parseInt(e.target.value, 10))}
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm"
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm min-h-[44px]"
                 >
                   {years.map((y) => (
                     <option key={y} value={y}>{y}</option>
@@ -407,7 +407,7 @@ export default function SchedulesPage() {
                 <select
                   value={month}
                   onChange={(e) => setMonth(parseInt(e.target.value, 10))}
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm"
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm min-h-[44px]"
                 >
                   {MONTHS_AR.map((m, i) => (
                     <option key={i} value={i + 1}>{m}</option>
@@ -419,7 +419,7 @@ export default function SchedulesPage() {
                 <select
                   value={departmentId}
                   onChange={(e) => setDepartmentId(e.target.value)}
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm min-w-[140px]"
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 text-sm min-w-[140px] min-h-[44px]"
                 >
                   <option value="">كل الأقسام</option>
                   {depts.map((d) => (
@@ -492,10 +492,10 @@ export default function SchedulesPage() {
             </div>
           </div>
           <div className="flex gap-2 pt-2">
-            <Button onClick={() => copyMonthMutation.mutate()} disabled={copyMonthMutation.isPending}>
+            <Button onClick={() => copyMonthMutation.mutate()} disabled={copyMonthMutation.isPending} className="min-h-[44px]">
               {copyMonthMutation.isPending ? 'جاري النسخ...' : 'نسخ'}
             </Button>
-            <Button variant="secondary" onClick={() => setCopyMonthOpen(false)}>
+            <Button variant="secondary" onClick={() => setCopyMonthOpen(false)} className="min-h-[44px]">
               إلغاء
             </Button>
           </div>
@@ -711,14 +711,14 @@ export default function SchedulesPage() {
           </div>
 
           <div className="flex gap-2 pt-6 border-t mt-6">
-            <Button type="submit" disabled={addMutation.isPending || bulkMutation.isPending}>
+            <Button type="submit" disabled={addMutation.isPending || bulkMutation.isPending} className="min-h-[44px]">
               {(addMutation.isPending || bulkMutation.isPending)
                 ? 'جاري الحفظ...'
                 : selectedEmployeeIds.length > 1
                   ? `تطبيق على ${selectedEmployeeIds.length} موظف`
                   : 'حفظ'}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setAddOpen(false)}>
+            <Button type="button" variant="secondary" onClick={() => setAddOpen(false)} className="min-h-[44px]">
               إلغاء
             </Button>
           </div>
@@ -759,7 +759,7 @@ export default function SchedulesPage() {
                       <button
                         type="button"
                         onClick={() => toggleDepartment(deptId)}
-                        className="flex-1 flex items-center justify-between gap-4 text-right hover:bg-gray-50/80 transition-colors rounded-lg py-1"
+                        className="flex-1 flex items-center justify-between gap-4 text-right hover:bg-gray-50/80 transition-colors rounded-lg py-1 min-h-[44px]"
                       >
                         <div className="flex items-center gap-3">
                           <div className="h-10 w-10 rounded-xl bg-primary-100 flex items-center justify-center">
@@ -777,7 +777,7 @@ export default function SchedulesPage() {
                       {hasPending && canApproveSchedules && (
                         <Button
                           size="sm"
-                          className="gap-1 bg-emerald-600 hover:bg-emerald-700 shrink-0"
+                          className="gap-1 bg-emerald-600 hover:bg-emerald-700 shrink-0 min-h-[44px]"
                           onClick={(e) => {
                             e.stopPropagation();
                             approveDepartmentMutation.mutate({ year, month, departmentId: deptId });
@@ -840,7 +840,7 @@ export default function SchedulesPage() {
                                   <Button
                                     size="sm"
                                     variant="outline"
-                                    className="gap-1"
+                                    className="gap-1 min-h-[44px]"
                                     onClick={() => {
                                       setCopyFromId(s.employee.id);
                                       setSelectedEmployeeIds([s.employee.id]);
@@ -854,7 +854,7 @@ export default function SchedulesPage() {
                                   <Button
                                     size="sm"
                                     variant="ghost"
-                                    className="gap-1"
+                                    className="gap-1 min-h-[44px]"
                                     onClick={() => {
                                       setCopyFromId(s.employee.id);
                                       setSelectedEmployeeIds([]);
@@ -867,7 +867,7 @@ export default function SchedulesPage() {
                                     <Button
                                       size="sm"
                                       variant="ghost"
-                                      className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50"
+                                      className="gap-1 text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px]"
                                       onClick={() => {
                                         if (typeof window !== 'undefined' && window.confirm('حذف هذا الجدول؟')) {
                                           deleteMutation.mutate(s.id);

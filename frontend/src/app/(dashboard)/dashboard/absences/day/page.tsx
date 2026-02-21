@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TableSkeleton } from '@/components/shared/page-skeleton';
+import { ResponsiveDataView } from '@/components/shared/responsive-data-view';
 import { useDebounce } from '@/hooks/use-debounce';
 
 type Absence = {
@@ -454,7 +455,7 @@ export default function AbsencesDayPage() {
                     <Button
                       onClick={() => approveMutation.mutate()}
                       disabled={approveMutation.isPending}
-                      className="gap-2 bg-primary-600 hover:bg-primary-700"
+                      className="gap-2 bg-primary-600 hover:bg-primary-700 min-h-[44px]"
                     >
                       <CheckCircle2 className="h-4 w-4" />
                       {approveMutation.isPending ? 'جاري المصادقة...' : 'مصادقة الكشف اليومي'}
@@ -471,37 +472,59 @@ export default function AbsencesDayPage() {
                     لا توجد نتائج تطابق البحث أو الفلاتر
                   </div>
                 ) : (
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm">
-                      <thead>
-                        <tr className="bg-gray-50 border-b border-gray-200">
-                          <th className="text-right p-4 font-semibold text-gray-700">الاسم الرباعي</th>
-                          <th className="text-right p-4 font-semibold text-gray-700">العنوان الوظيفي</th>
-                          <th className="text-right p-4 font-semibold text-gray-700">القسم</th>
-                          <th className="text-right p-4 font-semibold text-gray-700">نوع الدوام</th>
-                          <th className="text-right p-4 font-semibold text-gray-700">مرسل الكشف</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {filteredRows.map(({ absence, report }) => (
-                          <tr
-                            key={absence.id}
-                            className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
-                          >
-                            <td className="p-4 font-medium text-gray-900">{absence.employee?.fullName ?? '—'}</td>
-                            <td className="p-4 text-gray-600">{absence.employee?.jobTitle ?? '—'}</td>
-                            <td className="p-4 text-gray-600">{absence.employee?.department?.name ?? '—'}</td>
-                            <td className="p-4">
-                              <Badge variant="secondary">
-                                {WORK_TYPE_LABEL[absence.employee?.workType] ?? absence.employee?.workType ?? '—'}
-                              </Badge>
-                            </td>
-                            <td className="p-4 text-gray-600">{report.createdBy?.name ?? '—'}</td>
+                  <ResponsiveDataView
+                    tableClassName="overflow-x-auto"
+                    cardClassName="p-4"
+                    tableContent={
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="bg-gray-50 border-b border-gray-200">
+                            <th className="text-right p-4 font-semibold text-gray-700">الاسم الرباعي</th>
+                            <th className="text-right p-4 font-semibold text-gray-700">العنوان الوظيفي</th>
+                            <th className="text-right p-4 font-semibold text-gray-700">القسم</th>
+                            <th className="text-right p-4 font-semibold text-gray-700">نوع الدوام</th>
+                            <th className="text-right p-4 font-semibold text-gray-700">مرسل الكشف</th>
                           </tr>
+                        </thead>
+                        <tbody>
+                          {filteredRows.map(({ absence, report }) => (
+                            <tr
+                              key={absence.id}
+                              className="border-b border-gray-100 hover:bg-gray-50/50 transition-colors"
+                            >
+                              <td className="p-4 font-medium text-gray-900">{absence.employee?.fullName ?? '—'}</td>
+                              <td className="p-4 text-gray-600">{absence.employee?.jobTitle ?? '—'}</td>
+                              <td className="p-4 text-gray-600">{absence.employee?.department?.name ?? '—'}</td>
+                              <td className="p-4">
+                                <Badge variant="secondary">
+                                  {WORK_TYPE_LABEL[absence.employee?.workType] ?? absence.employee?.workType ?? '—'}
+                                </Badge>
+                              </td>
+                              <td className="p-4 text-gray-600">{report.createdBy?.name ?? '—'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    }
+                    cardContent={
+                      <>
+                        {filteredRows.map(({ absence, report }) => (
+                          <Card key={absence.id} className="border border-gray-200 shadow-sm">
+                            <CardContent className="p-4">
+                              <p className="font-medium text-gray-900">{absence.employee?.fullName ?? '—'}</p>
+                              <p className="text-sm text-gray-500">{absence.employee?.jobTitle ?? '—'} • {absence.employee?.department?.name ?? '—'}</p>
+                              <div className="flex items-center gap-2 mt-2 flex-wrap">
+                                <Badge variant="secondary" className="text-xs">
+                                  {WORK_TYPE_LABEL[absence.employee?.workType] ?? absence.employee?.workType ?? '—'}
+                                </Badge>
+                                <span className="text-xs text-gray-500">مرسل: {report.createdBy?.name ?? '—'}</span>
+                              </div>
+                            </CardContent>
+                          </Card>
                         ))}
-                      </tbody>
-                    </table>
-                  </div>
+                      </>
+                    }
+                  />
                 )}
               </CardContent>
             </Card>

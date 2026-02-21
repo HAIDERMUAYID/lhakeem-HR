@@ -181,6 +181,7 @@ export default function SettingsPage() {
                 newPassword !== confirmPassword ||
                 newPassword.length < 6
               }
+              className="min-h-[44px]"
             >
               {changePasswordMutation.isPending ? 'جاري الحفظ...' : 'تغيير كلمة المرور'}
             </Button>
@@ -203,7 +204,7 @@ export default function SettingsPage() {
                 onClick={() => dailyAccrualMutation.mutate()}
                 disabled={dailyAccrualMutation.isPending}
                 variant="outline"
-                className="mr-2"
+                className="mr-2 min-h-[44px]"
               >
                 {dailyAccrualMutation.isPending ? 'جاري التنفيذ...' : 'تشغيل الاستحقاق اليومي الآن'}
               </Button>
@@ -222,6 +223,7 @@ export default function SettingsPage() {
               <Button
                 onClick={() => accrualMutation.mutate()}
                 disabled={accrualMutation.isPending}
+                className="min-h-[44px]"
               >
                 {accrualMutation.isPending ? 'جاري التنفيذ...' : 'تشغيل الاستحقاق الشهري'}
               </Button>

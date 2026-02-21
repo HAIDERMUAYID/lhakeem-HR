@@ -452,7 +452,8 @@ export default function AbsencesPage() {
                       <p className="text-gray-500 py-4">اختر تاريخاً ثم سيتم إنشاء كشف جديد أو فتح الكشف الموجود.</p>
                     ) : (
                       <>
-                        <div className="overflow-x-auto rounded-xl border border-gray-200">
+                        {/* جدول: من md فما فوق */}
+                        <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200 max-w-full">
                           <table className="w-full text-sm">
                             <thead>
                               <tr className="bg-gray-50 border-b border-gray-200">
@@ -493,7 +494,7 @@ export default function AbsencesPage() {
                                           <Button
                                             size="sm"
                                             variant="ghost"
-                                            className="text-red-600 hover:bg-red-50"
+                                            className="text-red-600 hover:bg-red-50 min-h-[44px]"
                                             onClick={() =>
                                               removeAbsenceMutation.mutate({
                                                 reportId: report.id,
@@ -513,13 +514,50 @@ export default function AbsencesPage() {
                             </tbody>
                           </table>
                         </div>
+                        {/* بطاقات: على الجوال فقط */}
+                        {report.absences && report.absences.length > 0 && (
+                          <div className="md:hidden space-y-3">
+                            {report.absences.map((a) => (
+                              <Card key={a.id} className={`border shadow-sm ${String(a.id).startsWith('pending-') ? 'bg-blue-50/60 border-blue-100' : ''}`}>
+                                <CardContent className="p-4">
+                                  <p className="font-medium text-gray-900">{a.employee?.fullName ?? '—'}</p>
+                                  <p className="text-sm text-gray-500">{a.employee?.jobTitle ?? '—'} • {a.employee?.department?.name ?? '—'}</p>
+                                  <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
+                                    <span className="text-xs text-gray-500">
+                                      {WORK_TYPE_LABEL[a.employee?.workType] ?? a.employee?.workType ?? '—'} — {new Date(a.date).toLocaleDateString('ar-EG')}
+                                    </span>
+                                    {!isLocked && !String(a.id).startsWith('pending-') && (
+                                      <Button
+                                        size="sm"
+                                        variant="ghost"
+                                        className="text-red-600 hover:bg-red-50 min-h-[44px]"
+                                        onClick={() =>
+                                          removeAbsenceMutation.mutate({
+                                            reportId: report.id,
+                                            absenceId: a.id,
+                                          })
+                                        }
+                                        disabled={removeAbsenceMutation.isPending}
+                                      >
+                                        حذف
+                                      </Button>
+                                    )}
+                                  </div>
+                                </CardContent>
+                              </Card>
+                            ))}
+                          </div>
+                        )}
+                        {report.absences?.length === 0 && (
+                          <p className="md:hidden text-center text-gray-500 py-4">لا توجد سجلات. ابحث عن موظف أعلاه للإضافة.</p>
+                        )}
 
                         {!isLocked && report.absences?.length > 0 && (
                           <div className="mt-4 flex justify-end">
                             <Button
                               onClick={() => submitReportMutation.mutate(report.id)}
                               disabled={submitReportMutation.isPending}
-                              className="gap-2"
+                              className="gap-2 min-h-[44px]"
                             >
                               <Send className="h-4 w-4" />
                               {submitReportMutation.isPending ? 'جاري الإرسال...' : 'إرسال لمدير البصمة'}
@@ -645,7 +683,7 @@ export default function AbsencesPage() {
                         {new Date(consolidated.consolidation.approvedAt).toLocaleString('ar-EG')}
                       </p>
                     )}
-                    <div className="overflow-x-auto rounded-xl border border-gray-200 mb-4">
+                    <div className="hidden md:block overflow-x-auto rounded-xl border border-gray-200 mb-4 max-w-full">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="bg-gray-50 border-b border-gray-200">
@@ -669,11 +707,22 @@ export default function AbsencesPage() {
                         </tbody>
                       </table>
                     </div>
-                    <div className="flex gap-2">
+                    <div className="md:hidden space-y-3 mb-4">
+                      {(consolidated?.absences ?? []).map((a) => (
+                        <Card key={a.id} className="border border-gray-200 shadow-sm">
+                          <CardContent className="p-4">
+                            <p className="font-medium text-gray-900">{a.employee?.fullName}</p>
+                            <p className="text-sm text-gray-500">{a.employee?.jobTitle ?? '—'} • {a.employee?.department?.name ?? '—'}</p>
+                            <p className="text-xs text-gray-500 mt-1">{WORK_TYPE_LABEL[a.employee?.workType] ?? '—'} — {new Date(a.date).toLocaleDateString('ar-EG')}</p>
+                          </CardContent>
+                        </Card>
+                      ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
                       <Button
                         variant="outline"
                         size="sm"
-                        className="gap-1"
+                        className="gap-1 min-h-[44px]"
                         onClick={() => window.print()}
                       >
                         <Printer className="h-4 w-4" />
@@ -682,7 +731,7 @@ export default function AbsencesPage() {
                       <Button
                         variant="outline"
                         size="sm"
-                        className="gap-1"
+                        className="gap-1 min-h-[44px]"
                         onClick={() => {
                           const abs = consolidated?.absences ?? [];
                           const headers = ['الاسم الرباعي', 'العنوان الوظيفي', 'القسم', 'نوع الدوام', 'تاريخ الغياب'];

@@ -210,12 +210,12 @@ export default function HolidaysPage() {
                       {h.appliesTo === 'ALL' ? 'الكل' : h.appliesTo === 'MORNING_ONLY' ? 'صباحي فقط' : 'مخصص'}
                     </span>
                     <CanDo permission="HOLIDAYS_MANAGE">
-                      <Button size="sm" variant="ghost" onClick={() => { setEditing(h); setForm({ name: h.name, nameAr: h.nameAr, date: h.date.slice(0, 10) }); setEditOpen(true); }}>
+                      <Button size="sm" variant="ghost" onClick={() => { setEditing(h); setForm({ name: h.name, nameAr: h.nameAr, date: h.date.slice(0, 10) }); setEditOpen(true); }} className="min-h-[44px] min-w-[44px]">
                         <Pencil className="h-4 w-4" />
                       </Button>
                     </CanDo>
                     <CanDo permission="HOLIDAYS_MANAGE">
-                      <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50" onClick={() => { setHolidayToDelete(h); setDeleteOpen(true); }}>
+                      <Button size="sm" variant="ghost" className="text-red-600 hover:bg-red-50 min-h-[44px] min-w-[44px]" onClick={() => { setHolidayToDelete(h); setDeleteOpen(true); }}>
                         <Trash2 className="h-4 w-4" />
                       </Button>
                     </CanDo>

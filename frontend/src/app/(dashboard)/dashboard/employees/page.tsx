@@ -40,6 +40,7 @@ import { Select } from '@/components/ui/select';
 import { TableSkeleton } from '@/components/shared/page-skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
+import { ResponsiveDataView } from '@/components/shared/responsive-data-view';
 import { downloadCSV } from '@/lib/export';
 import { motion } from 'framer-motion';
 
@@ -678,7 +679,7 @@ export default function EmployeesPage() {
               <Button
                 variant="outline"
                 onClick={() => setFiltersExpanded((f) => !f)}
-                className="gap-2 shrink-0"
+                className="gap-2 shrink-0 min-h-[44px]"
               >
                 <Filter className="h-4 w-4" />
                 الفلاتر
@@ -775,108 +776,162 @@ export default function EmployeesPage() {
               onAction={() => setAddOpen(true)}
             />
           ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
-                    <SortableHead label="الاسم" field="fullName" />
-                    <SortableHead label="العنوان الوظيفي" field="jobTitle" />
-                    <SortableHead label="القسم" field="department" />
-                    <TableHead className="font-semibold text-gray-700 min-w-[140px]">
-                      <span className="flex items-center gap-1">
-                        <Fingerprint className="h-4 w-4 text-violet-500" />
-                        البصمة
-                      </span>
-                    </TableHead>
-                    <TableHead className="font-semibold text-gray-700">المسؤول</TableHead>
-                    <SortableHead label="رصيد الإجازات الاعتيادية" field="leaveBalance" />
-                    <TableHead className="font-semibold text-gray-700">الدوام</TableHead>
-                    <SortableHead label="آخر تحديث" field="updatedAt" />
-                    <TableHead className="font-semibold text-gray-700">الحالة</TableHead>
-                    <TableHead className="w-24 font-semibold text-gray-700"></TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {employees.map((emp) => (
-                    <TableRow
-                      key={emp.id}
-                      className="hover:bg-primary-50/30 transition-colors"
-                    >
-                      <TableCell className="font-medium">
-                        <Link
-                          href={`/dashboard/employees/${emp.id}`}
-                          className="text-primary-700 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
-                        >
-                          {emp.fullName}
-                        </Link>
-                      </TableCell>
-                      <TableCell className="text-gray-600">{emp.jobTitle}</TableCell>
-                      <TableCell>{emp.department?.name ?? '—'}</TableCell>
-                      <TableCell className="text-gray-600 text-sm">
-                        {emp.fingerprints?.length ? (
-                          <span className="flex flex-wrap gap-1">
-                            {emp.fingerprints.map((fp) => (
-                              <span
-                                key={fp.id}
-                                className="inline-flex items-center gap-0.5 bg-violet-50 text-violet-800 px-2 py-0.5 rounded text-xs"
-                                title={`${fp.device.name}: ${fp.fingerprintId}`}
-                              >
-                                <Fingerprint className="h-3 w-3" />
-                                {fp.device.code || fp.device.name}: {fp.fingerprintId}
-                              </span>
-                            ))}
-                          </span>
-                        ) : (
-                          '—'
-                        )}
-                      </TableCell>
-                      <TableCell className="text-gray-600">
-                        {emp.managerUser?.name ?? emp.manager?.fullName ?? '—'}
-                      </TableCell>
-                      <TableCell>
-                        <span className="font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-lg" title="رصيد الإجازات الاعتيادية (تقريب للأسفل — مسجل + استحقاق حتى اليوم)">
-                          {effectiveBalances[emp.id] != null
-                            ? Math.floor(Number(effectiveBalances[emp.id]))
-                            : Math.floor(Number(emp.leaveBalance) || 0)}
+            <ResponsiveDataView
+              cardClassName="p-4"
+              tableContent={
+                <Table>
+                  <TableHeader>
+                    <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
+                      <SortableHead label="الاسم" field="fullName" />
+                      <SortableHead label="العنوان الوظيفي" field="jobTitle" />
+                      <SortableHead label="القسم" field="department" />
+                      <TableHead className="font-semibold text-gray-700 min-w-[140px]">
+                        <span className="flex items-center gap-1">
+                          <Fingerprint className="h-4 w-4 text-violet-500" />
+                          البصمة
                         </span>
-                      </TableCell>
-                      <TableCell>
-                        {emp.workType === 'SHIFTS' ? (
-                          <Badge variant="default" className="bg-violet-100 text-violet-800">
-                            خفارات
-                          </Badge>
-                        ) : (
-                          <Badge variant="default" className="bg-sky-100 text-sky-800">
-                            صباحي
-                          </Badge>
-                        )}
-                      </TableCell>
-                      <TableCell className="text-gray-500 text-sm whitespace-nowrap">
-                        {emp.updatedAt
-                          ? new Date(emp.updatedAt).toLocaleDateString('ar-EG', { dateStyle: 'short' })
-                          : '—'}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={emp.isActive ? 'success' : 'default'}>
-                          {emp.isActive ? 'نشط' : 'متوقف'}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Button
-                          size="sm"
-                          variant="ghost"
-                          onClick={() => openEdit(emp)}
-                          className="gap-1.5 text-gray-600 hover:text-primary-700"
-                        >
-                          <Pencil className="h-4 w-4" />
-                          تعديل
-                        </Button>
-                      </TableCell>
+                      </TableHead>
+                      <TableHead className="font-semibold text-gray-700">المسؤول</TableHead>
+                      <SortableHead label="رصيد الإجازات الاعتيادية" field="leaveBalance" />
+                      <TableHead className="font-semibold text-gray-700">الدوام</TableHead>
+                      <SortableHead label="آخر تحديث" field="updatedAt" />
+                      <TableHead className="font-semibold text-gray-700">الحالة</TableHead>
+                      <TableHead className="w-24 font-semibold text-gray-700"></TableHead>
                     </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {employees.map((emp) => (
+                      <TableRow
+                        key={emp.id}
+                        className="hover:bg-primary-50/30 transition-colors"
+                      >
+                        <TableCell className="font-medium">
+                          <Link
+                            href={`/dashboard/employees/${emp.id}`}
+                            className="text-primary-700 hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500 rounded"
+                          >
+                            {emp.fullName}
+                          </Link>
+                        </TableCell>
+                        <TableCell className="text-gray-600">{emp.jobTitle}</TableCell>
+                        <TableCell>{emp.department?.name ?? '—'}</TableCell>
+                        <TableCell className="text-gray-600 text-sm">
+                          {emp.fingerprints?.length ? (
+                            <span className="flex flex-wrap gap-1">
+                              {emp.fingerprints.map((fp) => (
+                                <span
+                                  key={fp.id}
+                                  className="inline-flex items-center gap-0.5 bg-violet-50 text-violet-800 px-2 py-0.5 rounded text-xs"
+                                  title={`${fp.device.name}: ${fp.fingerprintId}`}
+                                >
+                                  <Fingerprint className="h-3 w-3" />
+                                  {fp.device.code || fp.device.name}: {fp.fingerprintId}
+                                </span>
+                              ))}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </TableCell>
+                        <TableCell className="text-gray-600">
+                          {emp.managerUser?.name ?? emp.manager?.fullName ?? '—'}
+                        </TableCell>
+                        <TableCell>
+                          <span className="font-bold text-primary-700 bg-primary-50 px-2 py-0.5 rounded-lg" title="رصيد الإجازات الاعتيادية">
+                            {effectiveBalances[emp.id] != null
+                              ? Math.floor(Number(effectiveBalances[emp.id]))
+                              : Math.floor(Number(emp.leaveBalance) || 0)}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {emp.workType === 'SHIFTS' ? (
+                            <Badge variant="default" className="bg-violet-100 text-violet-800">خفارات</Badge>
+                          ) : (
+                            <Badge variant="default" className="bg-sky-100 text-sky-800">صباحي</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell className="text-gray-500 text-sm whitespace-nowrap">
+                          {emp.updatedAt
+                            ? new Date(emp.updatedAt).toLocaleDateString('ar-EG', { dateStyle: 'short' })
+                            : '—'}
+                        </TableCell>
+                        <TableCell>
+                          <Badge variant={emp.isActive ? 'success' : 'default'}>
+                            {emp.isActive ? 'نشط' : 'متوقف'}
+                          </Badge>
+                        </TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => openEdit(emp)}
+                            className="gap-1.5 text-gray-600 hover:text-primary-700"
+                          >
+                            <Pencil className="h-4 w-4" />
+                            تعديل
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              }
+              cardContent={
+                <>
+                  {employees.map((emp) => (
+                    <Card key={emp.id} className="border border-gray-200 shadow-sm overflow-hidden">
+                      <CardContent className="p-4">
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0 flex-1">
+                            <Link
+                              href={`/dashboard/employees/${emp.id}`}
+                              className="font-semibold text-primary-700 hover:underline block truncate"
+                            >
+                              {emp.fullName}
+                            </Link>
+                            <p className="text-sm text-gray-600 mt-0.5">{emp.jobTitle}</p>
+                            <p className="text-xs text-gray-500 mt-1">{emp.department?.name ?? '—'}</p>
+                            <div className="flex flex-wrap gap-1.5 mt-2">
+                              <Badge variant={emp.isActive ? 'success' : 'default'} className="text-xs">
+                                {emp.isActive ? 'نشط' : 'متوقف'}
+                              </Badge>
+                              {emp.workType === 'SHIFTS' ? (
+                                <Badge variant="default" className="bg-violet-100 text-violet-800 text-xs">خفارات</Badge>
+                              ) : (
+                                <Badge variant="default" className="bg-sky-100 text-sky-800 text-xs">صباحي</Badge>
+                              )}
+                              <span className="text-xs text-gray-500">
+                                رصيد: {effectiveBalances[emp.id] != null
+                                  ? Math.floor(Number(effectiveBalances[emp.id]))
+                                  : Math.floor(Number(emp.leaveBalance) || 0)}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="flex flex-col gap-2 shrink-0">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => openEdit(emp)}
+                              className="min-h-[44px] gap-1.5"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              تعديل
+                            </Button>
+                            <Link
+                              href={`/dashboard/employees/${emp.id}`}
+                              className="inline-flex items-center justify-center gap-1 min-h-[44px] px-4 rounded-xl border border-gray-200 bg-gray-50 text-gray-700 text-sm font-medium hover:bg-gray-100"
+                            >
+                              عرض
+                              <ChevronLeft className="h-4 w-4 rotate-180" />
+                            </Link>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
                   ))}
-                </TableBody>
-              </Table>
-            </div>
+                </>
+              }
+            />
           )}
         </CardContent>
 

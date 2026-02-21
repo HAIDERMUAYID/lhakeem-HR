@@ -140,6 +140,12 @@ npx prisma db seed
 
 ## استكشاف الأخطاء
 
+### الخطأ: `The column users.password_hash does not exist in the current database`
+
+هذا يحدث عندما تكون قاعدة البيانات (مثل `hospital_db_jezf`) تحتوي على جدول `users` من **مشروع آخر** (مثلاً نظام المستشفى) وبنية الجدول تختلف عن نظام الحكيم.
+
+**الحل:** تمت إضافة migration يضيف العمود `password_hash` إن كان ناقصاً. بعد دفع التعديلات (commit + push) وإعادة النشر (Redeploy) لخدمة الـ API، سيشغّل `prisma migrate deploy` هذه الـ migration تلقائياً ويضيف العمود. بعدها شغّل **مرة واحدة** الـ seed لإنشاء مستخدمي النظام (مثل admin@alhakeem.com): من **Render Shell** لخدمة الـ API نفّذ `cd backend && npx prisma db seed` ثم جرّب الدخول بـ **admin@alhakeem.com** / **admin123**.
+
 ### تسجيل الدخول يعيد "Internal server error" (500)
 
 1. **تحقق من صحة الـ API وقاعدة البيانات:**  

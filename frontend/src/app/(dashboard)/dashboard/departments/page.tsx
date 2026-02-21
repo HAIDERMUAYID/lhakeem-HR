@@ -360,7 +360,7 @@ export default function DepartmentsPage() {
                           variant="outline"
                           size="sm"
                           onClick={() => openEmployees(dept)}
-                          className="gap-1.5"
+                          className="gap-1.5 min-h-[44px]"
                         >
                           <Users className="h-4 w-4" />
                           {dept._count.employees} موظف
@@ -370,7 +370,7 @@ export default function DepartmentsPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() => openEdit(dept)}
-                            className="gap-1.5 text-gray-600 hover:text-primary-700"
+                            className="gap-1.5 text-gray-600 hover:text-primary-700 min-h-[44px]"
                           >
                             <Pencil className="h-4 w-4" />
                             تعديل

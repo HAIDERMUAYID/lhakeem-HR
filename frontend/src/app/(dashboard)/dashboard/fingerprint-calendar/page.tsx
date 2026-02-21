@@ -349,12 +349,12 @@ export default function FingerprintCalendarPage() {
             )}
 
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-              <div className="flex items-center gap-2">
+              <div className="flex flex-wrap items-center gap-2">
                 <Button
                   variant={viewMode === 'month' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setViewMode('month')}
-                  className="gap-1"
+                  className="gap-1 min-h-[44px]"
                 >
                   <CalendarDays className="h-4 w-4" />
                   شهر
@@ -363,20 +363,20 @@ export default function FingerprintCalendarPage() {
                   variant={viewMode === 'year' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setViewMode('year')}
-                  className="gap-1"
+                  className="gap-1 min-h-[44px]"
                 >
                   <LayoutGrid className="h-4 w-4" />
                   سنة
                 </Button>
                 {viewMode === 'month' && (
                   <>
-                    <Button variant="outline" size="sm" onClick={prevMonth} className="gap-1">
+                    <Button variant="outline" size="sm" onClick={prevMonth} className="gap-1 min-h-[44px] min-w-[44px]">
                       <ChevronRight className="h-5 w-5" />
                     </Button>
-                    <span className="font-semibold text-gray-900 min-w-[180px] text-center text-lg">
+                    <span className="font-semibold text-gray-900 min-w-[140px] sm:min-w-[180px] text-center text-base sm:text-lg">
                       {AR_MONTHS[date.month - 1]} {date.year}
                     </span>
-                    <Button variant="outline" size="sm" onClick={nextMonth} className="gap-1">
+                    <Button variant="outline" size="sm" onClick={nextMonth} className="gap-1 min-h-[44px] min-w-[44px]">
                       <ChevronLeft className="h-5 w-5" />
                     </Button>
                   </>
@@ -399,7 +399,7 @@ export default function FingerprintCalendarPage() {
                       <Button
                         key={name}
                         variant="outline"
-                        className="h-auto py-3"
+                        className="h-auto min-h-[44px] py-3"
                         onClick={() => goToMonth(i + 1)}
                       >
                         {name}
@@ -410,7 +410,7 @@ export default function FingerprintCalendarPage() {
               </Card>
             ) : (
               <Card className="border-0 shadow-md overflow-hidden">
-                <CardContent className="p-4">
+                <CardContent className="p-4 overflow-x-auto max-w-full">
                   {isLoading ? (
                     <div className="grid grid-cols-7 gap-1 min-h-[400px]">
                       {WEEKDAYS.map((w) => (
@@ -421,14 +421,14 @@ export default function FingerprintCalendarPage() {
                       ))}
                     </div>
                   ) : (
-                    <div className="grid grid-cols-7 gap-1">
+                    <div className="grid grid-cols-7 gap-1 min-w-[280px]">
                       {WEEKDAYS.map((w) => (
                         <div key={w} className="text-center text-xs font-medium text-gray-500 py-2">
                           {w}
                         </div>
                       ))}
                       {Array.from({ length: offset }, (_, i) => (
-                        <div key={`empty-${i}`} className="min-h-[82px] rounded-xl bg-gray-50/50" />
+                        <div key={`empty-${i}`} className="min-h-[72px] sm:min-h-[82px] rounded-xl bg-gray-50/50" />
                       ))}
                       {Array.from({ length: daysInMonth }, (_, i) => {
                         const day = i + 1;
@@ -442,7 +442,7 @@ export default function FingerprintCalendarPage() {
                             key={day}
                             type="button"
                             onClick={() => setSelectedDate(dateStr)}
-                            className={`min-h-[82px] rounded-xl border-2 text-right p-2 transition-all hover:border-primary-300 hover:bg-primary-50/30 ${
+                            className={`min-h-[72px] sm:min-h-[82px] rounded-xl border-2 text-right p-2 transition-all hover:border-primary-300 hover:bg-primary-50/30 touch-manipulation ${
                               today ? 'ring-2 ring-primary-400 ring-offset-2' : ''
                             } ${isSelected ? 'border-primary-500 bg-primary-50' : 'border-gray-100 bg-white'}`}
                           >

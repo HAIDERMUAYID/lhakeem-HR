@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, InternalServerErrorException } from '@nestjs/common';
 import { IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -31,7 +31,15 @@ export class AuthController {
 
   @Post('login')
   async login(@Body() dto: LoginDto) {
-    return this.authService.login(dto.username.trim(), dto.password);
+    try {
+      return await this.authService.login(dto.username.trim(), dto.password);
+    } catch (err) {
+      if (err && typeof err === 'object' && 'statusCode' in err && (err as { statusCode: number }).statusCode === 401) {
+        throw err;
+      }
+      console.error('[auth/login]', err);
+      throw new InternalServerErrorException('خطأ داخلي في الخادم. تحقق من سجلات الـ API (Logs) على Render.');
+    }
   }
 
   @Post('change-password')

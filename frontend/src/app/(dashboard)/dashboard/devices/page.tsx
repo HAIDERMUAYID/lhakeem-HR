@@ -154,7 +154,7 @@ export default function DevicesPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">أجهزة البصمة</h1>
           <p className="text-gray-500 mt-1">إدارة أجهزة الحضور (الإدارة، الطوارئ، إلخ)</p>
         </div>
-        <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md">
+        <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md min-h-[44px]">
           <Plus className="h-5 w-5" />
           إضافة جهاز
         </Button>
@@ -206,7 +206,7 @@ export default function DevicesPage() {
             <Button
               variant="outline"
               onClick={() => setFiltersExpanded((f) => !f)}
-              className="gap-2 shrink-0"
+              className="gap-2 shrink-0 min-h-[44px]"
             >
               <Filter className="h-4 w-4" />
               الفلاتر
@@ -290,7 +290,7 @@ export default function DevicesPage() {
                       </div>
                       <div className="flex items-center justify-between mt-4 pt-4 border-t border-gray-100">
                         <Link href={`/dashboard/devices/${d.id}`}>
-                          <Button variant="outline" size="sm" className="gap-1.5">
+                          <Button variant="outline" size="sm" className="gap-1.5 min-h-[44px]">
                             <Users className="h-4 w-4" />
                             {d._count.fingerprints} بصمة
                           </Button>
@@ -300,7 +300,7 @@ export default function DevicesPage() {
                             size="sm"
                             variant="ghost"
                             onClick={() => openEdit(d)}
-                            className="gap-1.5 text-gray-600 hover:text-primary-700"
+                            className="gap-1.5 text-gray-600 hover:text-primary-700 min-h-[44px]"
                           >
                             <Pencil className="h-4 w-4" />
                             تعديل
@@ -310,7 +310,7 @@ export default function DevicesPage() {
                             variant="ghost"
                             onClick={() => handleDelete(d)}
                             disabled={d._count.fingerprints > 0}
-                            className="gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50"
+                            className="gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px]"
                           >
                             <Trash2 className="h-4 w-4" />
                           </Button>
@@ -373,10 +373,10 @@ export default function DevicesPage() {
             الجهاز مفعّل
           </label>
           <div className="flex gap-3 pt-2">
-            <Button type="submit" disabled={addMutation.isPending}>
+            <Button type="submit" disabled={addMutation.isPending} className="min-h-[44px]">
               {addMutation.isPending ? 'جاري الإضافة...' : 'إضافة الجهاز'}
             </Button>
-            <Button type="button" variant="secondary" onClick={() => setAddOpen(false)}>
+            <Button type="button" variant="secondary" onClick={() => setAddOpen(false)} className="min-h-[44px]">
               إلغاء
             </Button>
           </div>
@@ -441,7 +441,7 @@ export default function DevicesPage() {
               الجهاز مفعّل
             </label>
             <div className="flex gap-3 pt-2">
-              <Button type="submit" disabled={updateMutation.isPending}>
+              <Button type="submit" disabled={updateMutation.isPending} className="min-h-[44px]">
                 {updateMutation.isPending ? 'جاري الحفظ...' : 'حفظ التعديلات'}
               </Button>
               <Button
@@ -451,6 +451,7 @@ export default function DevicesPage() {
                   setEditOpen(false);
                   setEditing(null);
                 }}
+                className="min-h-[44px]"
               >
                 إلغاء
               </Button>

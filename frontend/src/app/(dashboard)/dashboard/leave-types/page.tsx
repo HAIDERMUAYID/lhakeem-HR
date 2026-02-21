@@ -247,7 +247,7 @@ export default function LeaveTypesPage() {
                     </p>
                   </div>
                   {canManage && (
-                    <Button size="sm" variant="ghost" onClick={() => openEdit(t)}>
+                    <Button size="sm" variant="ghost" onClick={() => openEdit(t)} className="min-h-[44px]">
                       <Pencil className="h-4 w-4 ml-1" />
                       تعديل
                     </Button>

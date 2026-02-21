@@ -80,12 +80,17 @@ git push -u origin main
 
 استبدل `YOUR_USERNAME` باسم المستخدم أو المنظمة. للتفاصيل انظر [docs/GITHUB-PUBLISH.md](docs/GITHUB-PUBLISH.md).
 
-## الاستضافة على Render
+## نشر النظام (Deploy)
 
-1. إنشاء PostgreSQL Database على Render
-2. إنشاء Web Service للـ Backend (من مجلد backend)
-3. إنشاء Web Service للـ Frontend (من مجلد frontend)
-4. إعداد متغيرات البيئة (DATABASE_URL, JWT_SECRET, NEXT_PUBLIC_API_URL)
+لنشر النظام على الإنترنت (مثلاً على Render):
+
+1. ارفع الكود إلى **GitHub** إن لم يكن مرفوعاً (`git push origin main`).
+2. في [Render](https://render.com): **New** → **Blueprint** → اختر المستودع؛ سيُنشأ من `render.yaml` قاعدة البيانات + API + الواجهة.
+3. بعد النشر، عيّن في خدمة **alhakeem-web** المتغير `NEXT_PUBLIC_API_URL` برابط الـ API، ثم أعد النشر.
+4. شغّل **مرة واحدة** من مجلد backend: `npx prisma db seed` لإنشاء المستخدم الافتراضي.
+
+**دليل مفصل خطوة بخطوة:** [docs/DEPLOY-GUIDE.md](docs/DEPLOY-GUIDE.md)  
+تفاصيل Render وقاعدة بيانات موجودة: [docs/RENDER-DEPLOY.md](docs/RENDER-DEPLOY.md).
 
 ## الميزات
 

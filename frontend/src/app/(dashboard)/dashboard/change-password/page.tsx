@@ -79,8 +79,9 @@ export default function ChangePasswordPage() {
                 <button
                   type="button"
                   onClick={() => setShowCurrent((s) => !s)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                   tabIndex={-1}
+                  aria-label={showCurrent ? 'إخفاء' : 'إظهار'}
                 >
                   {showCurrent ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -104,8 +105,9 @@ export default function ChangePasswordPage() {
                 <button
                   type="button"
                   onClick={() => setShowNew((s) => !s)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                   tabIndex={-1}
+                  aria-label={showNew ? 'إخفاء' : 'إظهار'}
                 >
                   {showNew ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -132,8 +134,9 @@ export default function ChangePasswordPage() {
                 <button
                   type="button"
                   onClick={() => setShowConfirm((s) => !s)}
-                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 min-h-[44px] min-w-[44px] flex items-center justify-center"
                   tabIndex={-1}
+                  aria-label={showConfirm ? 'إخفاء' : 'إظهار'}
                 >
                   {showConfirm ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
@@ -146,7 +149,7 @@ export default function ChangePasswordPage() {
             <Button
               type="submit"
               disabled={changePasswordMutation.isPending || !isValid}
-              className="w-full rounded-xl py-6 gap-2"
+              className="w-full rounded-xl min-h-[48px] py-3 gap-2"
             >
               <KeyRound className="h-5 w-5" />
               {changePasswordMutation.isPending ? 'جاري الحفظ...' : 'تغيير كلمة المرور'}

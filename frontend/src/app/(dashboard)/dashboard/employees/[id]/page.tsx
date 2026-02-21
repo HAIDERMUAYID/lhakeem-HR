@@ -130,7 +130,7 @@ export default function EmployeeProfilePage() {
     return (
       <div className="py-12 text-center text-gray-500">
         <p>معرف الموظف غير متوفر.</p>
-        <Button variant="outline" className="mt-4" asChild>
+        <Button variant="outline" className="mt-4 min-h-[44px]" asChild>
           <Link href="/dashboard/employees">العودة للموظفين</Link>
         </Button>
       </div>
@@ -160,7 +160,7 @@ export default function EmployeeProfilePage() {
           message={error ? (error as Error).message : 'الموظف غير موجود'}
           onRetry={() => refetch()}
         />
-        <Button variant="outline" asChild>
+        <Button variant="outline" className="min-h-[44px]" asChild>
           <Link href="/dashboard/employees">العودة للموظفين</Link>
         </Button>
       </div>
@@ -174,7 +174,7 @@ export default function EmployeeProfilePage() {
     <motion.div
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
-      className="space-y-6"
+      className="space-y-6 overflow-x-hidden max-w-full"
     >
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div className="flex items-center gap-4">
@@ -195,13 +195,13 @@ export default function EmployeeProfilePage() {
           </div>
         </div>
         <div className="flex gap-2">
-          <Button variant="outline" size="sm" asChild>
+          <Button variant="outline" size="sm" asChild className="min-h-[44px]">
             <Link href="/dashboard/employees" className="gap-2">
               <ArrowRight className="h-4 w-4" />
               الموظفين
             </Link>
           </Button>
-          <Button size="sm" asChild>
+          <Button size="sm" asChild className="min-h-[44px]">
             <Link href={`/dashboard/leaves?employeeId=${id}`} className="gap-2">
               <CalendarCheck className="h-4 w-4" />
               طلب إجازة
@@ -219,7 +219,7 @@ export default function EmployeeProfilePage() {
               type="button"
               onClick={() => setTab(t.id)}
               className={cn(
-                'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors',
+                'flex items-center gap-2 px-4 py-2.5 rounded-xl text-sm font-medium transition-colors min-h-[44px]',
                 tab === t.id
                   ? 'bg-primary-600 text-white'
                   : 'text-gray-600 hover:bg-gray-100'
@@ -278,7 +278,7 @@ export default function EmployeeProfilePage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <h2 className="text-lg font-semibold">طلبات الإجازة</h2>
-            <Button size="sm" asChild>
+            <Button size="sm" asChild className="min-h-[44px]">
               <Link href={`/dashboard/leaves?employeeId=${id}`}>طلب إجازة</Link>
             </Button>
           </CardHeader>
@@ -293,8 +293,8 @@ export default function EmployeeProfilePage() {
                 compact
               />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto max-w-full">
+                <table className="w-full text-sm min-w-[320px]">
                   <thead>
                     <tr className="border-b border-gray-200 text-right">
                       <th className="p-3 font-medium text-gray-700">النوع</th>
@@ -350,8 +350,8 @@ export default function EmployeeProfilePage() {
                 compact
               />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto max-w-full">
+                <table className="w-full text-sm min-w-[280px]">
                   <thead>
                     <tr className="border-b border-gray-200 text-right">
                       <th className="p-3 font-medium text-gray-700">التاريخ</th>

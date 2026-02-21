@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TableSkeleton } from '@/components/shared/page-skeleton';
+import { ResponsiveDataView } from '@/components/shared/responsive-data-view';
 
 type ImportBatch = {
   id: string;
@@ -73,42 +74,78 @@ export default function ImportsPage() {
           ) : !batches || batches.length === 0 ? (
             <div className="py-12 text-center text-gray-500">لا توجد دفعات استيراد</div>
           ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>اسم الملف</TableHead>
-                  <TableHead>التاريخ</TableHead>
-                  <TableHead>مستورد</TableHead>
-                  <TableHead>فشل</TableHead>
-                  <TableHead className="w-24"></TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {batches.map((b) => (
-                  <TableRow key={b.id}>
-                    <TableCell className="font-medium">{b.fileName ?? '—'}</TableCell>
-                    <TableCell>
-                      {format(new Date(b.createdAt), 'd MMM yyyy، HH:mm', { locale: ar })}
-                    </TableCell>
-                    <TableCell>{b._count?.employees ?? b.importedCount}</TableCell>
-                    <TableCell>{b.failedCount}</TableCell>
-                    <TableCell>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        onClick={() => {
-                          setBatchToDelete(b);
-                          setDeleteOpen(true);
-                        }}
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </Button>
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+            <ResponsiveDataView
+              cardClassName="p-4"
+              tableContent={
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>اسم الملف</TableHead>
+                      <TableHead>التاريخ</TableHead>
+                      <TableHead>مستورد</TableHead>
+                      <TableHead>فشل</TableHead>
+                      <TableHead className="w-24"></TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {batches.map((b) => (
+                      <TableRow key={b.id}>
+                        <TableCell className="font-medium">{b.fileName ?? '—'}</TableCell>
+                        <TableCell>
+                          {format(new Date(b.createdAt), 'd MMM yyyy، HH:mm', { locale: ar })}
+                        </TableCell>
+                        <TableCell>{b._count?.employees ?? b.importedCount}</TableCell>
+                        <TableCell>{b.failedCount}</TableCell>
+                        <TableCell>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] min-w-[44px]"
+                            onClick={() => {
+                              setBatchToDelete(b);
+                              setDeleteOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              }
+              cardContent={
+                <>
+                  {batches.map((b) => (
+                    <Card key={b.id} className="border border-gray-200 shadow-sm">
+                      <CardContent className="p-4">
+                        <p className="font-medium text-gray-900 truncate">{b.fileName ?? '—'}</p>
+                        <p className="text-sm text-gray-500 mt-1">
+                          {format(new Date(b.createdAt), 'd MMM yyyy، HH:mm', { locale: ar })}
+                        </p>
+                        <div className="flex items-center justify-between mt-3 gap-2">
+                          <span className="text-xs text-gray-500">
+                            مستورد: {b._count?.employees ?? b.importedCount} — فشل: {b.failedCount}
+                          </span>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 min-h-[44px] shrink-0"
+                            onClick={() => {
+                              setBatchToDelete(b);
+                              setDeleteOpen(true);
+                            }}
+                          >
+                            <Trash2 className="h-4 w-4 ml-1" />
+                            حذف
+                          </Button>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </>
+              }
+            />
           )}
         </CardContent>
       </Card>

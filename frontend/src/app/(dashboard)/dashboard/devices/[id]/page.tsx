@@ -298,7 +298,7 @@ export default function DeviceDetailPage() {
       <div className="p-6">
         <p className="text-gray-500">معرف الجهاز غير صالح.</p>
         <Link href="/dashboard/devices">
-          <Button variant="outline" className="mt-4">العودة للأجهزة</Button>
+          <Button variant="outline" className="mt-4 min-h-[44px]">العودة للأجهزة</Button>
         </Link>
       </div>
     );
@@ -309,7 +309,7 @@ export default function DeviceDetailPage() {
       <div className="p-6">
         <p className="text-red-600">حدث خطأ في تحميل الجهاز.</p>
         <Link href="/dashboard/devices">
-          <Button variant="outline" className="mt-4">العودة للأجهزة</Button>
+          <Button variant="outline" className="mt-4 min-h-[44px]">العودة للأجهزة</Button>
         </Link>
       </div>
     );
@@ -349,7 +349,7 @@ export default function DeviceDetailPage() {
               )}
             </div>
           </div>
-          <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md">
+          <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md min-h-[44px]">
             <Plus className="h-5 w-5" />
             إضافة موظفين
           </Button>
@@ -416,10 +416,11 @@ export default function DeviceDetailPage() {
                                 })
                               }
                               disabled={updateFingerprintMutation.isPending || !editFingerprintId.trim()}
+                              className="min-h-[44px]"
                             >
                               حفظ
                             </Button>
-                            <Button size="sm" variant="ghost" onClick={() => setEditRecordId(null)}>
+                            <Button size="sm" variant="ghost" onClick={() => setEditRecordId(null)} className="min-h-[44px]">
                               إلغاء
                             </Button>
                           </div>
@@ -434,7 +435,7 @@ export default function DeviceDetailPage() {
                               size="sm"
                               variant="ghost"
                               onClick={() => openEdit(rec)}
-                              className="gap-1 text-gray-600"
+                              className="gap-1 text-gray-600 min-h-[44px]"
                             >
                               <Pencil className="h-4 w-4" />
                               تعديل
@@ -443,7 +444,7 @@ export default function DeviceDetailPage() {
                               size="sm"
                               variant="ghost"
                               onClick={() => handleRemove(rec.employeeId, rec.id, rec.employee.fullName)}
-                              className="gap-1 text-red-600 hover:bg-red-50"
+                              className="gap-1 text-red-600 hover:bg-red-50 min-h-[44px]"
                             >
                               <Trash2 className="h-4 w-4" />
                               حذف
@@ -505,10 +506,10 @@ export default function DeviceDetailPage() {
               <p className="text-gray-500 py-4">لا يوجد موظفين غير مرتبطين بهذا الجهاز، أو لا توجد نتائج بحث.</p>
             )}
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setAddOpen(false)}>
+              <Button variant="outline" onClick={() => setAddOpen(false)} className="min-h-[44px]">
                 إلغاء
               </Button>
-              <Button onClick={goToIdsStep}>
+              <Button onClick={goToIdsStep} className="min-h-[44px]">
                 التالي: إدخال معرف البصمة
               </Button>
             </div>
@@ -534,10 +535,10 @@ export default function DeviceDetailPage() {
               })}
             </div>
             <div className="flex justify-end gap-2 pt-4">
-              <Button variant="outline" onClick={() => setAddStep('select')}>
+              <Button variant="outline" onClick={() => setAddStep('select')} className="min-h-[44px]">
                 رجوع
               </Button>
-              <Button onClick={handleSubmitAdd} disabled={addFingerprintMutation.isPending}>
+              <Button onClick={handleSubmitAdd} disabled={addFingerprintMutation.isPending} className="min-h-[44px]">
                 {addFingerprintMutation.isPending ? 'جاري الإضافة...' : 'إضافة للجهاز'}
               </Button>
             </div>
@@ -581,7 +582,7 @@ export default function DeviceDetailPage() {
               <button
                 type="button"
                 onClick={() => setConflictChoice('move')}
-                className={`flex items-start gap-4 p-4 rounded-xl border-2 text-right transition-all ${
+                className={`flex items-start gap-4 p-4 rounded-xl border-2 text-right transition-all min-h-[52px] ${
                   conflictChoice === 'move'
                     ? 'border-primary-500 bg-primary-50/50'
                     : 'border-gray-200 hover:border-primary-200 hover:bg-gray-50'
@@ -601,7 +602,7 @@ export default function DeviceDetailPage() {
               <button
                 type="button"
                 onClick={() => setConflictChoice('add_both')}
-                className={`flex items-start gap-4 p-4 rounded-xl border-2 text-right transition-all ${
+                className={`flex items-start gap-4 p-4 rounded-xl border-2 text-right transition-all min-h-[52px] ${
                   conflictChoice === 'add_both'
                     ? 'border-primary-500 bg-primary-50/50'
                     : 'border-gray-200 hover:border-primary-200 hover:bg-gray-50'
@@ -621,7 +622,7 @@ export default function DeviceDetailPage() {
               <button
                 type="button"
                 onClick={() => setConflictChoice('skip')}
-                className={`flex items-start gap-4 p-4 rounded-xl border-2 text-right transition-all ${
+                className={`flex items-start gap-4 p-4 rounded-xl border-2 text-right transition-all min-h-[52px] ${
                   conflictChoice === 'skip'
                     ? 'border-gray-400 bg-gray-50'
                     : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
@@ -646,12 +647,14 @@ export default function DeviceDetailPage() {
                   setConflictEmployee(null);
                   setConflictChoice(null);
                 }}
+                className="min-h-[44px]"
               >
                 إلغاء
               </Button>
               <Button
                 onClick={resolveConflict}
                 disabled={conflictChoice === null}
+                className="min-h-[44px]"
               >
                 {conflictChoice === null
                   ? 'اختر خياراً'

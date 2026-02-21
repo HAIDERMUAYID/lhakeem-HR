@@ -139,11 +139,11 @@ export default function OfficialScheduleReportPage() {
         }
       `}} />
 
-      <div className="no-print max-w-6xl mx-auto px-4 py-8 space-y-6">
+      <div className="no-print max-w-6xl mx-auto px-4 py-8 space-y-6 overflow-x-hidden">
         <div>
           <Link
             href="/dashboard/schedules"
-            className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium mb-2"
+            className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium mb-2 py-2 min-h-[44px]"
           >
             <ArrowRight className="h-4 w-4" />
             العودة إلى جداول الدوام
@@ -162,7 +162,7 @@ export default function OfficialScheduleReportPage() {
                 <select
                   value={year}
                   onChange={(e) => setYear(parseInt(e.target.value, 10))}
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 w-28"
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 w-28 min-h-[44px]"
                 >
                   {years.map((y) => (
                     <option key={y} value={y}>{y}</option>
@@ -174,7 +174,7 @@ export default function OfficialScheduleReportPage() {
                 <select
                   value={month}
                   onChange={(e) => setMonth(parseInt(e.target.value, 10))}
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 min-w-[120px]"
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 min-w-[120px] min-h-[44px]"
                 >
                   {MONTHS_AR.map((m, i) => (
                     <option key={i} value={i + 1}>{m}</option>
@@ -186,7 +186,7 @@ export default function OfficialScheduleReportPage() {
                 <select
                   value={departmentId}
                   onChange={(e) => setDepartmentId(e.target.value)}
-                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 min-w-[160px]"
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 min-w-[160px] min-h-[44px]"
                 >
                   <option value="">كل الأقسام (صفحة لكل قسم)</option>
                   {depts.map((d) => (
@@ -197,7 +197,7 @@ export default function OfficialScheduleReportPage() {
               <Button
                 onClick={handlePrint}
                 disabled={!hasData}
-                className="gap-2"
+                className="gap-2 min-h-[44px]"
               >
                 <Printer className="h-4 w-4" />
                 طباعة تقرير جدول الدوام
@@ -221,8 +221,8 @@ export default function OfficialScheduleReportPage() {
                       {(block.status ?? 'PENDING') === 'APPROVED' ? 'حالة الجدول: معتمد' : 'حالة الجدول: معلق — للتوقيع والاعتماد'}
                     </p>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-sm border border-gray-200 border-collapse">
+                  <div className="overflow-x-auto max-w-full">
+                    <table className="w-full text-sm border border-gray-200 border-collapse min-w-[320px]">
                       <thead>
                         <tr className="bg-gray-100" style={{ borderBottom: '1px solid #e2e8f0' }}>
                           <th className="text-right p-2.5 font-semibold border-l border-gray-200">م</th>

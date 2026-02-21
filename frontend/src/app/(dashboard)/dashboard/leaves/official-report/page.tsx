@@ -127,9 +127,9 @@ export default function LeaveOfficialReportPage() {
         }
       `}} />
 
-      <div className="no-print max-w-6xl mx-auto px-4 py-8 space-y-6">
+      <div className="no-print max-w-6xl mx-auto px-4 py-8 space-y-6 overflow-x-hidden">
         <div>
-          <Link href="/dashboard/leaves" className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium mb-2">
+          <Link href="/dashboard/leaves" className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium mb-2 py-2 min-h-[44px]">
             <ArrowRight className="h-4 w-4" />
             العودة إلى الإجازات
           </Link>
@@ -148,26 +148,26 @@ export default function LeaveOfficialReportPage() {
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">من تاريخ</label>
-                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
+                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm min-h-[44px]" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">إلى تاريخ</label>
-                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm" />
+                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm min-h-[44px]" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">اسم الموظف / بحث</label>
-                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث..." className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-40" />
+                <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="بحث..." className="rounded-xl border border-gray-200 px-3 py-2 text-sm w-40 min-h-[44px]" />
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">القسم</label>
-                <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm min-w-[140px]">
+                <select value={departmentId} onChange={(e) => setDepartmentId(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm min-w-[140px] min-h-[44px]">
                   <option value="">كل الأقسام</option>
                   {depts.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">نوع الدوام</label>
-                <select value={workType} onChange={(e) => setWorkType(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                <select value={workType} onChange={(e) => setWorkType(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm min-h-[44px]">
                   <option value="">الكل</option>
                   <option value="MORNING">صباحي</option>
                   <option value="SHIFTS">خفر</option>
@@ -175,21 +175,21 @@ export default function LeaveOfficialReportPage() {
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">نوع الإجازة</label>
-                <select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm min-w-[120px]">
+                <select value={leaveTypeId} onChange={(e) => setLeaveTypeId(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm min-w-[120px] min-h-[44px]">
                   <option value="">الكل</option>
                   {types.map((t) => <option key={t.id} value={t.id}>{t.nameAr}</option>)}
                 </select>
               </div>
               <div>
                 <label className="block text-xs text-gray-500 mb-1">الحالة</label>
-                <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm">
+                <select value={status} onChange={(e) => setStatus(e.target.value)} className="rounded-xl border border-gray-200 px-3 py-2 text-sm min-h-[44px]">
                   <option value="">الكل</option>
                   <option value="APPROVED">معتمدة</option>
                   <option value="PENDING">قيد الانتظار</option>
                   <option value="REJECTED">مرفوضة</option>
                 </select>
               </div>
-              <Button onClick={handlePrint} disabled={!hasData} className="gap-2">
+              <Button onClick={handlePrint} disabled={!hasData} className="gap-2 min-h-[44px]">
                 <Printer className="h-4 w-4" />
                 طباعة / PDF
               </Button>
@@ -302,8 +302,8 @@ export default function LeaveOfficialReportPage() {
             {/* Table - Screen */}
             <Card className="overflow-hidden border-0 shadow-md">
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm border-collapse">
+                <div className="overflow-x-auto max-w-full">
+                  <table className="w-full text-sm border-collapse min-w-[480px]">
                     <thead>
                       <tr className="bg-gray-100 border-b border-gray-200">
                         <th className="text-right p-2.5 font-semibold border-l border-gray-200">م</th>

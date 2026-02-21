@@ -74,6 +74,16 @@
   .input-focus {
     @apply focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500;
   }
+  .safe-area-pb {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 /* Smooth scrollbar */

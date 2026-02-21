@@ -110,7 +110,11 @@ const config: Config = {
   			]
   		},
   		spacing: {
-  			touch: '44px'
+  			touch: '44px',
+  			'content': 'min(100vw, 1200px)'
+  		},
+  		screens: {
+  			xs: '375px',
   		},
   		borderRadius: {
   			lg: 'var(--radius)',

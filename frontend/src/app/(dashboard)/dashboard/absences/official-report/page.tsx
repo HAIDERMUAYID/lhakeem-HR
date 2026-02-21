@@ -92,7 +92,7 @@ export default function OfficialAbsenceReportPage() {
     return (
       <div className="max-w-2xl mx-auto py-16 text-center">
         <p className="text-gray-600">غير مصرح لك بعرض كشف الغيابات الرسمي.</p>
-        <Button asChild variant="outline" className="mt-4">
+        <Button asChild variant="outline" className="mt-4 min-h-[44px]">
           <Link href="/dashboard/absences">العودة إلى الغيابات</Link>
         </Button>
       </div>
@@ -123,11 +123,11 @@ export default function OfficialAbsenceReportPage() {
         }
       `}} />
 
-      <div className="no-print max-w-6xl mx-auto px-4 py-8 space-y-6">
+      <div className="no-print max-w-6xl mx-auto px-4 py-8 space-y-6 overflow-x-hidden">
         <div>
           <Link
             href="/dashboard/absences"
-            className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium mb-2"
+            className="inline-flex items-center gap-2 text-sm text-primary-600 hover:text-primary-700 font-medium mb-2 py-2 min-h-[44px]"
           >
             <ArrowRight className="h-4 w-4" />
             العودة إلى الغيابات
@@ -145,7 +145,7 @@ export default function OfficialAbsenceReportPage() {
                   type="date"
                   value={fromDate}
                   onChange={(e) => setFromDate(e.target.value)}
-                  className="w-44"
+                  className="w-44 min-h-[44px]"
                 />
               </div>
               <div>
@@ -154,13 +154,13 @@ export default function OfficialAbsenceReportPage() {
                   type="date"
                   value={toDate}
                   onChange={(e) => setToDate(e.target.value)}
-                  className="w-44"
+                  className="w-44 min-h-[44px]"
                 />
               </div>
               <Button
                 onClick={handlePrint}
                 disabled={!data?.absences?.length}
-                className="gap-2"
+                className="gap-2 min-h-[44px]"
               >
                 <Printer className="h-4 w-4" />
                 طباعة كشف الغيابات الرسمي
@@ -233,8 +233,8 @@ export default function OfficialAbsenceReportPage() {
 
             <Card className="border-0 shadow-md overflow-hidden">
               <CardContent className="p-0">
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
+                <div className="overflow-x-auto max-w-full">
+                  <table className="w-full text-sm min-w-[320px]">
                     <thead>
                       <tr className="bg-gray-50 border-b border-gray-200">
                         <th className="text-right p-3 font-semibold text-gray-700">الاسم الرباعي</th>

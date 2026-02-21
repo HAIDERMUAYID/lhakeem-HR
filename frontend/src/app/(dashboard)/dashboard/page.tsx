@@ -135,7 +135,7 @@ export default function DashboardPage() {
           <CardTitle>طلبات الإجازات حسب الحالة</CardTitle>
         </CardHeader>
         <CardContent>
-          <div className="h-48">
+          <div className="h-48 min-h-[200px]">
             {(() => {
               const data = [
                 { name: 'قيد الانتظار', value: (leaveRequests?.data ?? []).filter((r) => r.status === 'PENDING').length },
@@ -172,7 +172,7 @@ export default function DashboardPage() {
                 <Link
                   key={s.title}
                   href={s.href}
-                  className="flex items-center gap-3 rounded-xl border border-gray-100 p-4 hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200"
+                  className="flex items-center gap-3 rounded-xl border border-gray-100 p-4 min-h-[48px] hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200"
                 >
                   <div className={`rounded-xl p-2 ${s.bg}`}>
                     <Icon className="h-5 w-5 text-primary-600" />

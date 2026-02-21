@@ -50,12 +50,13 @@ export function ConfirmDialog({
         <AlertDialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0" />
         <AlertDialog.Content
           className={cn(
-            'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-6 rounded-2xl border border-gray-200 bg-white p-6 shadow-2xl duration-200',
+            'fixed left-[50%] top-[50%] z-50 grid w-full max-w-lg translate-x-[-50%] translate-y-[-50%] gap-6 rounded-2xl border border-gray-200 bg-white p-4 sm:p-6 shadow-2xl duration-200',
+            'max-w-[calc(100vw-2rem)] max-h-[90vh] overflow-y-auto',
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0 data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95'
           )}
         >
           <div className="space-y-2">
-            <AlertDialog.Title className="text-lg font-semibold text-gray-900">
+            <AlertDialog.Title className="text-base sm:text-lg font-semibold text-gray-900">
               {title}
             </AlertDialog.Title>
             {description && (
@@ -64,9 +65,9 @@ export function ConfirmDialog({
               </AlertDialog.Description>
             )}
           </div>
-          <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+          <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <AlertDialog.Cancel
-              className={cn(buttonVariants({ variant: 'secondary' }), 'min-w-[100px]')}
+              className={cn(buttonVariants({ variant: 'secondary' }), 'min-w-[100px] min-h-[44px]')}
               disabled={busy}
             >
               {cancelLabel}
@@ -77,7 +78,7 @@ export function ConfirmDialog({
                 handleConfirm();
               }}
               className={cn(
-                'min-w-[100px]',
+                'min-w-[100px] min-h-[44px]',
                 variant === 'danger'
                   ? 'bg-red-600 text-white hover:bg-red-700'
                   : buttonVariants()

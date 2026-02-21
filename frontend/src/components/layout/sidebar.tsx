@@ -186,7 +186,7 @@ export function SidebarTrigger({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex h-10 w-10 items-center justify-center rounded-xl hover:bg-gray-100 transition-colors lg:hidden"
+      className="flex min-h-[44px] min-w-[44px] items-center justify-center rounded-xl hover:bg-gray-100 transition-colors lg:hidden"
       aria-label="فتح القائمة"
     >
       <Menu className="h-5 w-5 text-gray-600" />

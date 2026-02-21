@@ -240,7 +240,7 @@ export default function LoginPage() {
             <Button
               type="submit"
               disabled={isSubmitting}
-              className="w-full rounded-xl py-6 text-base font-semibold"
+              className="w-full rounded-xl min-h-[48px] py-3 text-base font-semibold"
             >
               {isSubmitting ? 'جاري التحقق...' : 'دخول'}
             </Button>

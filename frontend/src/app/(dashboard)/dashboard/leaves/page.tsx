@@ -822,7 +822,7 @@ export default function LeavesPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="gap-1"
+                      className="gap-1 min-h-[44px]"
                       onClick={() => {
                         setDetailsId(req.id);
                         setDetailsOpen(true);
@@ -835,7 +835,7 @@ export default function LeavesPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="gap-1 text-green-600 border-green-600 hover:bg-green-50"
+                          className="gap-1 text-green-600 border-green-600 hover:bg-green-50 min-h-[44px]"
                           onClick={() => {
                             setSelectedRequest(req);
                             setApproveOpen(true);
@@ -847,7 +847,7 @@ export default function LeavesPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          className="gap-1 text-red-600 border-red-600 hover:bg-red-50"
+                          className="gap-1 text-red-600 border-red-600 hover:bg-red-50 min-h-[44px]"
                           onClick={() => {
                             setSelectedRequest(req);
                             setRejectOpen(true);
@@ -862,7 +862,7 @@ export default function LeavesPage() {
                       <Button
                         size="sm"
                         variant="outline"
-                        className="gap-1 text-red-600 border-red-200 hover:bg-red-50"
+                        className="gap-1 text-red-600 border-red-200 hover:bg-red-50 min-h-[44px]"
                         onClick={() => {
                           setSelectedRequest(req);
                           setDeleteOpen(true);
