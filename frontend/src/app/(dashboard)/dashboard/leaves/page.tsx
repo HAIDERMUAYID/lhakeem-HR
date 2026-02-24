@@ -410,6 +410,7 @@ export default function LeavesPage() {
       employeeId: string;
       leaveTypeId: string;
       startDate: string;
+      startTime?: string;
       hoursCount?: number;
       daysCount?: number;
       reason?: string;
