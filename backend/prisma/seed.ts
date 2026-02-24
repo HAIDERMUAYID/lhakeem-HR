@@ -55,10 +55,17 @@ async function main() {
         { name: 'Sick', nameAr: 'مرضية', deductFromBalance: true, requiresApproval: true },
         { name: 'Emergency', nameAr: 'اضطرارية', deductFromBalance: true, requiresApproval: true },
         { name: 'Unpaid', nameAr: 'بدون راتب', deductFromBalance: false, requiresApproval: true },
+        { name: 'TimeBased', nameAr: 'إجازة زمنية', deductFromBalance: true, requiresApproval: true },
       ],
     });
   }
   const allLeaveTypes = await prisma.leaveType.findMany();
+  const hasTimeBased = allLeaveTypes.some((lt) => lt.name === 'TimeBased' || lt.nameAr === 'إجازة زمنية');
+  if (!hasTimeBased) {
+    await prisma.leaveType.create({
+      data: { name: 'TimeBased', nameAr: 'إجازة زمنية', deductFromBalance: true, requiresApproval: true },
+    });
+  }
 
   // ========== DEPARTMENTS ==========
   const dept1 = await prisma.department.upsert({

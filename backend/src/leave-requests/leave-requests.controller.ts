@@ -117,6 +117,7 @@ export class LeaveRequestsController {
       leaveTypeId: string;
       startDate: string;
       endDate?: string;
+      startTime?: string;
       daysCount?: number;
       hoursCount?: number;
       reason?: string;
@@ -127,6 +128,7 @@ export class LeaveRequestsController {
       ...dto,
       startDate: new Date(dto.startDate),
       endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      startTime: dto.startTime,
       createdByUserId: user?.id,
     });
   }

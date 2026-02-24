@@ -106,6 +106,8 @@ export default function EmployeesPage() {
   const [incompleteOnly, setIncompleteOnly] = useState(false);
   const [departmentFilter, setDepartmentFilter] = useState('');
   const [workTypeFilter, setWorkTypeFilter] = useState('');
+  const [updatedAfter, setUpdatedAfter] = useState('');
+  const [updatedBefore, setUpdatedBefore] = useState('');
   const [sortBy, setSortBy] = useState<'fullName' | 'jobTitle' | 'leaveBalance' | 'department' | 'updatedAt'>('fullName');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
   const [addOpen, setAddOpen] = useState(false);
@@ -137,14 +139,19 @@ export default function EmployeesPage() {
   useEffect(() => {
     const deptId = searchParams.get('departmentId');
     const incomplete = searchParams.get('incompleteOnly');
-    if (deptId) {
-      setDepartmentFilter(deptId);
-      setFiltersExpanded(true);
-    }
-    if (incomplete === 'true' || incomplete === '1') {
-      setIncompleteOnly(true);
-      setFiltersExpanded(true);
-    }
+    const ua = searchParams.get('updatedAfter');
+    const ub = searchParams.get('updatedBefore');
+    const nextDept = deptId ?? '';
+    const nextIncomplete = incomplete === 'true' || incomplete === '1';
+    const nextUa = ua ?? '';
+    const nextUb = ub ?? '';
+
+    setDepartmentFilter(nextDept);
+    setIncompleteOnly(nextIncomplete);
+    setUpdatedAfter(nextUa);
+    setUpdatedBefore(nextUb);
+
+    if (nextDept || nextIncomplete || nextUa || nextUb) setFiltersExpanded(true);
   }, [searchParams]);
 
   useEffect(() => {
@@ -401,11 +408,13 @@ export default function EmployeesPage() {
   if (incompleteOnly) queryParams.set('incompleteOnly', 'true');
   if (departmentFilter) queryParams.set('departmentId', departmentFilter);
   if (workTypeFilter) queryParams.set('workType', workTypeFilter);
+  if (updatedAfter) queryParams.set('updatedAfter', updatedAfter);
+  if (updatedBefore) queryParams.set('updatedBefore', updatedBefore);
   queryParams.set('sortBy', sortBy === 'department' ? 'department' : sortBy);
   queryParams.set('sortOrder', sortOrder);
 
   const { data, isLoading, error, refetch } = useQuery({
-    queryKey: ['employees', page, pageSize, debouncedSearch, includeInactive, incompleteOnly, departmentFilter, workTypeFilter, sortBy, sortOrder],
+    queryKey: ['employees', page, pageSize, debouncedSearch, includeInactive, incompleteOnly, departmentFilter, workTypeFilter, updatedAfter, updatedBefore, sortBy, sortOrder],
     queryFn: () => apiGet<EmployeesResponse>(`/api/employees?${queryParams}`),
     staleTime: 60 * 1000,
   });
@@ -439,6 +448,8 @@ export default function EmployeesPage() {
       if (incompleteOnly) params.set('incompleteOnly', 'true');
       if (departmentFilter) params.set('departmentId', departmentFilter);
       if (workTypeFilter) params.set('workType', workTypeFilter);
+      if (updatedAfter) params.set('updatedAfter', updatedAfter);
+      if (updatedBefore) params.set('updatedBefore', updatedBefore);
       params.set('sortBy', sortBy === 'department' ? 'department' : sortBy);
       params.set('sortOrder', sortOrder);
       const res = await apiGet<EmployeesResponse>(`/api/employees?${params}`);

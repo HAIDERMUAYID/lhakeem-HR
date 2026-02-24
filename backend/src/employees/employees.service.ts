@@ -31,16 +31,28 @@ export class EmployeesService {
   }
 
   /** إحصائيات إكمال البيانات: عدد النشطين وعدد من لم يُحدّد لهم رصيد لغاية تاريخ */
-  async getDataCompletionStats(departmentId?: string) {
+  async getDataCompletionStats(departmentId?: string, baseline?: string) {
     const baseWhere: Prisma.EmployeeWhereInput = { isActive: true };
     if (departmentId) baseWhere.departmentId = departmentId;
-    const [totalActive, withoutBalanceDate] = await Promise.all([
+    const baselineDate = baseline ? new Date(baseline) : null;
+    const hasBaseline = baselineDate != null && !Number.isNaN(baselineDate.getTime());
+    const [totalActive, withoutBalanceDate, updatedIncompleteSinceBaseline] = await Promise.all([
       this.prisma.employee.count({ where: baseWhere }),
       this.prisma.employee.count({
         where: { ...baseWhere, balanceStartDate: null },
       }),
+      hasBaseline
+        ? this.prisma.employee.count({
+            where: { ...baseWhere, balanceStartDate: null, updatedAt: { gte: baselineDate! } },
+          })
+        : Promise.resolve(0),
     ]);
-    return { totalActive, withoutBalanceDate };
+    return {
+      totalActive,
+      withoutBalanceDate,
+      baseline: hasBaseline ? baselineDate!.toISOString() : null,
+      updatedIncompleteSinceBaseline,
+    };
   }
 
   async findAll(params?: {
@@ -52,6 +64,9 @@ export class EmployeesService {
     includeInactive?: boolean;
     /** عرض الموظفين النشطين الذين لم يُحدّد لهم تاريخ رصيد (لغاية تاريخ) فقط */
     incompleteOnly?: boolean;
+    /** فلترة حسب آخر تحديث (ISO string) */
+    updatedAfter?: string;
+    updatedBefore?: string;
     sortBy?: 'fullName' | 'jobTitle' | 'leaveBalance' | 'createdAt' | 'updatedAt' | 'department';
     sortOrder?: 'asc' | 'desc';
   }) {
@@ -63,6 +78,18 @@ export class EmployeesService {
     }
     if (params?.departmentId) where.departmentId = params.departmentId;
     if (params?.workType) where.workType = params.workType;
+    const updatedAtFilter: Prisma.DateTimeFilter = {};
+    if (params?.updatedAfter) {
+      const d = new Date(params.updatedAfter);
+      if (!Number.isNaN(d.getTime())) updatedAtFilter.gte = d;
+    }
+    if (params?.updatedBefore) {
+      const d = new Date(params.updatedBefore);
+      if (!Number.isNaN(d.getTime())) updatedAtFilter.lt = d;
+    }
+    if (Object.keys(updatedAtFilter).length > 0) {
+      where.updatedAt = updatedAtFilter;
+    }
     const searchTrim = params?.search?.trim();
     if (searchTrim && searchTrim.length >= 2) {
       where.OR = [
@@ -81,7 +108,7 @@ export class EmployeesService {
           ? { [orderField]: orderDir }
           : { [orderField]: orderDir };
 
-    const take = Math.min(Math.max(1, params?.take ?? 20), 100);
+    const take = Math.min(Math.max(1, params?.take ?? 20), 5000);
     const skip = params?.skip ?? 0;
 
     const [employees, total] = await Promise.all([

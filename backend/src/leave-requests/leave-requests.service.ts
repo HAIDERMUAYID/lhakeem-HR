@@ -305,10 +305,11 @@ export class LeaveRequestsService {
     leaveTypeId: string;
     startDate: Date;
     endDate?: Date;
+    /** للإجازة الزمنية: وقت البداية (HH:mm أو HH:mm:ss). المباشرة نفس اليوم. */
+    startTime?: string;
     daysCount?: number;
     hoursCount?: number;
     reason?: string;
-    /** عند وجوده ونوع الإجازة «لا يتطلب موافقة» يُنشأ الطلب معتمداً تلقائياً */
     createdByUserId?: string;
   }) {
     if (!dto.employeeId?.trim()) {
@@ -329,8 +330,8 @@ export class LeaveRequestsService {
       throw new BadRequestException('لا يمكن إنشاء طلب إجازة لموظف غير نشط (متوقف). يظهر في الأرشيف فقط.');
     }
 
-    let { startDate, endDate, daysCount, hoursCount } = dto;
-    const startD = new Date(startDate);
+    let { startDate, endDate, daysCount, hoursCount, startTime } = dto;
+    let startD = new Date(startDate);
 
     const [employee, schedule, leaveType] = await Promise.all([
       this.prisma.employee.findUnique({ where: { id: dto.employeeId } }),
@@ -349,6 +350,21 @@ export class LeaveRequestsService {
     }
     const hoursPerDay = getHoursFromSchedule(schedule);
     const skipHolidays = employee.workType === 'MORNING';
+
+    if (hoursCount != null && hoursCount > 0 && startTime?.trim()) {
+      const match = startTime.trim().match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/);
+      if (match) {
+        const h = Math.min(23, Math.max(0, parseInt(match[1], 10)));
+        const m = Math.min(59, Math.max(0, parseInt(match[2], 10)));
+        startD = new Date(startDate);
+        startD.setHours(h, m, 0, 0);
+        const endD = new Date(startD);
+        endD.setTime(endD.getTime() + hoursCount * 60 * 60 * 1000);
+        startDate = startD;
+        endDate = endD;
+        daysCount = Math.ceil(hoursCount / hoursPerDay) || 1;
+      }
+    }
 
     const needHolidays =
       skipHolidays &&

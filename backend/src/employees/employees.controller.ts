@@ -17,11 +17,12 @@ export class EmployeesController {
   @RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.EMPLOYEES_MANAGE, PERMISSIONS.EMPLOYEES_VIEW)
   async getDataCompletionStats(
     @Query('departmentId') departmentId?: string,
+    @Query('baseline') baseline?: string,
     @CurrentUser() user?: { departmentId?: string | null; permissions?: string[] },
   ) {
     const hasFullAccess = user?.permissions?.includes('ADMIN') || user?.permissions?.includes('EMPLOYEES_MANAGE') || user?.permissions?.includes('EMPLOYEES_VIEW');
     const deptFilter = departmentId ?? (!hasFullAccess && user?.departmentId ? user.departmentId : undefined);
-    return this.employeesService.getDataCompletionStats(deptFilter);
+    return this.employeesService.getDataCompletionStats(deptFilter, baseline);
   }
 
   @Get('stats')
@@ -43,11 +44,14 @@ export class EmployeesController {
     @Query('search') search?: string,
     @Query('includeInactive') includeInactive?: string,
     @Query('incompleteOnly') incompleteOnly?: string,
+    @Query('updatedAfter') updatedAfter?: string,
+    @Query('updatedBefore') updatedBefore?: string,
     @Query('sortBy') sortBy?: 'fullName' | 'jobTitle' | 'leaveBalance' | 'createdAt' | 'updatedAt' | 'department',
     @Query('sortOrder') sortOrder?: 'asc' | 'desc',
     @CurrentUser() user?: { departmentId?: string | null; permissions?: string[] },
   ) {
-    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 20), 100);
+    // رفع الحد الأعلى لتسهيل التصدير والمتابعة (مع بقاء الافتراضي 20 للواجهة)
+    const limitNum = Math.min(Math.max(1, parseInt(limit, 10) || 20), 5000);
     const skip = (Math.max(1, parseInt(page, 10)) - 1) * limitNum;
     const hasFullAccess =
       user?.permissions?.includes('ADMIN') ||
@@ -65,6 +69,8 @@ export class EmployeesController {
       search,
       includeInactive: includeInactive === 'true' || includeInactive === '1',
       incompleteOnly: incompleteOnly === 'true' || incompleteOnly === '1',
+      updatedAfter,
+      updatedBefore,
       sortBy: sortBy as 'fullName' | 'jobTitle' | 'leaveBalance' | 'createdAt' | 'updatedAt' | 'department',
       sortOrder: sortOrder === 'desc' ? 'desc' : 'asc',
     });
