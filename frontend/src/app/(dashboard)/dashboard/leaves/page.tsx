@@ -454,7 +454,7 @@ export default function LeavesPage() {
           currentBalance: number;
         }>(
           `/api/leave-requests/cumulative-balance?employeeId=${form.employeeId}&leaveTypeId=${form.leaveTypeId}`,
-          { signal: controller.signal as any },
+          { signal: controller.signal },
         );
         setCumulativeInfo({ currentBalance: res.currentBalance });
       } catch {

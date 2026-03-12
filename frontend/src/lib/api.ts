@@ -32,7 +32,7 @@ export async function api<T>(
   return res.json();
 }
 
-export const apiGet = <T>(path: string) => api<T>(path);
+export const apiGet = <T>(path: string, options?: RequestInit) => api<T>(path, options);
 export const apiPost = <T>(path: string, body: unknown) =>
   api<T>(path, { method: 'POST', body: JSON.stringify(body) });
 export const apiPut = <T>(path: string, body: unknown) =>
