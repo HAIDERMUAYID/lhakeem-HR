@@ -52,4 +52,13 @@ export class LeaveTypesService {
       data: dto as object,
     });
   }
+
+  /** تعطيل نوع الإجازة (حذف منطقي) — يبقى في قاعدة البيانات لطلبات الإجازة المرتبطة */
+  async deactivate(id: string) {
+    return this.prisma.leaveType.update({
+      where: { id },
+      data: { isActive: false },
+      select: { id: true, nameAr: true, isActive: true },
+    });
+  }
 }

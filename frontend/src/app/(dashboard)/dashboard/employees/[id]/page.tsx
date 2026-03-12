@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   UserCircle,
@@ -24,6 +24,8 @@ import { apiGet, apiPost } from '@/lib/api';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Modal } from '@/components/ui/modal';
 import { TableSkeleton } from '@/components/shared/page-skeleton';
 import { ErrorState } from '@/components/shared/error-state';
 import { EmptyState } from '@/components/shared/empty-state';
@@ -117,7 +119,19 @@ export default function EmployeeProfilePage() {
   const params = useParams();
   const router = useRouter();
   const id = params?.id as string;
+  const queryClient = useQueryClient();
   const [tab, setTab] = useState<(typeof TABS)[number]['id']>('basic');
+  const [addLeaveOpen, setAddLeaveOpen] = useState(false);
+  const [leaveForm, setLeaveForm] = useState({
+    leaveTypeId: '',
+    startDate: '',
+    startTime: '',
+    hoursCount: '2',
+    daysCount: '2',
+    reason: '',
+  });
+  const [leaveLocalDays, setLeaveLocalDays] = useState('2');
+  const [leaveLocalHours, setLeaveLocalHours] = useState('2');
   const { setLastSegmentLabel } = useBreadcrumbTitle();
 
   const { data: employee, isLoading, error, refetch } = useQuery({
@@ -156,7 +170,7 @@ export default function EmployeeProfilePage() {
   const { data: leaveTypesData } = useQuery({
     queryKey: ['leave-types-for-balance'],
     queryFn: () => apiGet<LeaveTypeForBalance[]>('/api/leave-types'),
-    enabled: !!id && tab === 'cumulative',
+    enabled: !!id && (tab === 'cumulative' || addLeaveOpen),
     staleTime: 5 * 60 * 1000,
   });
 
@@ -223,6 +237,28 @@ export default function EmployeeProfilePage() {
     onError: (err: Error) => {
       toast.error(err.message);
     },
+  });
+
+  const addLeaveMutation = useMutation({
+    mutationFn: (body: {
+      employeeId: string;
+      leaveTypeId: string;
+      startDate: string;
+      startTime?: string;
+      hoursCount?: number;
+      daysCount?: number;
+      reason?: string;
+    }) => apiPost('/api/leave-requests', body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leave-requests', 'employee', id] });
+      queryClient.invalidateQueries({ queryKey: ['leave-requests'] });
+      setAddLeaveOpen(false);
+      setLeaveForm({ leaveTypeId: '', startDate: '', startTime: '', hoursCount: '2', daysCount: '2', reason: '' });
+      setLeaveLocalDays('2');
+      setLeaveLocalHours('2');
+      toast.success('تم إرسال طلب الإجازة بنجاح');
+    },
+    onError: (err: Error) => toast.error(err.message),
   });
 
   if (!id) {
@@ -300,11 +336,9 @@ export default function EmployeeProfilePage() {
               الموظفين
             </Link>
           </Button>
-          <Button size="sm" asChild className="min-h-[44px]">
-            <Link href={`/dashboard/leaves?employeeId=${id}`} className="gap-2">
-              <CalendarCheck className="h-4 w-4" />
-              طلب إجازة
-            </Link>
+          <Button size="sm" className="min-h-[44px] gap-2" onClick={() => setAddLeaveOpen(true)}>
+            <CalendarCheck className="h-4 w-4" />
+            طلب إجازة
           </Button>
         </div>
       </div>
@@ -377,8 +411,8 @@ export default function EmployeeProfilePage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <h2 className="text-lg font-semibold">طلبات الإجازة</h2>
-            <Button size="sm" asChild className="min-h-[44px]">
-              <Link href={`/dashboard/leaves?employeeId=${id}`}>طلب إجازة</Link>
+            <Button size="sm" className="min-h-[44px]" onClick={() => setAddLeaveOpen(true)}>
+              طلب إجازة
             </Button>
           </CardHeader>
           <CardContent>
@@ -388,7 +422,7 @@ export default function EmployeeProfilePage() {
                 title="لا توجد طلبات إجازة"
                 description="لم يُسجّل لهذا الموظف أي طلب إجازة"
                 actionLabel="طلب إجازة"
-                onAction={() => router.push(`/dashboard/leaves?employeeId=${id}`)}
+                onAction={() => setAddLeaveOpen(true)}
                 compact
               />
             ) : (
@@ -742,6 +776,170 @@ export default function EmployeeProfilePage() {
           </CardContent>
         </Card>
       )}
+
+      <Modal
+        open={addLeaveOpen}
+        onClose={() => setAddLeaveOpen(false)}
+        title="طلب إجازة للموظف"
+        className="max-w-lg"
+      >
+        <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            const allTypes = leaveTypesData ?? [];
+            const selected = allTypes.find((t) => t.id === leaveForm.leaveTypeId);
+            const isTemporal = selected?.nameAr?.includes('زمنية') ?? false;
+            const hoursVal = isTemporal ? Math.min(4, Math.max(1, Number(leaveForm.hoursCount) || 1)) : undefined;
+            const daysVal = !isTemporal ? (Number(leaveForm.daysCount) || 0) : undefined;
+            if (!leaveForm.leaveTypeId || !leaveForm.startDate) {
+              toast.error('اختر نوع الإجازة وتاريخ البداية');
+              return;
+            }
+            if (isTemporal && !leaveForm.startTime) {
+              toast.error('الإجازة الزمنية تتطلب ساعة البداية');
+              return;
+            }
+            if (!isTemporal && (!daysVal || daysVal < 1)) {
+              toast.error('أدخل عدد الأيام');
+              return;
+            }
+            addLeaveMutation.mutate({
+              employeeId: id,
+              leaveTypeId: leaveForm.leaveTypeId,
+              startDate: leaveForm.startDate,
+              startTime: isTemporal ? leaveForm.startTime : undefined,
+              hoursCount: hoursVal,
+              daysCount: daysVal,
+              reason: leaveForm.reason || undefined,
+            });
+          }}
+          className="space-y-4"
+        >
+          <div className="rounded-xl border border-gray-100 bg-gray-50/50 p-3">
+            <p className="text-xs font-medium text-gray-500">الموظف</p>
+            <p className="font-semibold text-gray-900">{employee?.fullName}</p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">نوع الإجازة *</label>
+            <select
+              value={leaveForm.leaveTypeId}
+              onChange={(e) => setLeaveForm((f) => ({ ...f, leaveTypeId: e.target.value }))}
+              className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2.5 text-sm"
+              required
+            >
+              <option value="">— اختر النوع —</option>
+              {(leaveTypesData ?? []).map((lt) => (
+                <option key={lt.id} value={lt.id}>{lt.nameAr}</option>
+              ))}
+            </select>
+          </div>
+
+          {(() => {
+            const selected = (leaveTypesData ?? []).find((t) => t.id === leaveForm.leaveTypeId);
+            const isTemporalLeave = selected?.nameAr?.includes('زمنية') ?? false;
+            if (isTemporalLeave) {
+              return (
+                <>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">التاريخ *</label>
+                      <Input
+                        type="date"
+                        value={leaveForm.startDate}
+                        onChange={(e) => setLeaveForm((f) => ({ ...f, startDate: e.target.value }))}
+                        required
+                        className="rounded-xl"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1.5">ساعة البداية *</label>
+                      <Input
+                        type="time"
+                        value={leaveForm.startTime}
+                        onChange={(e) => setLeaveForm((f) => ({ ...f, startTime: e.target.value }))}
+                        required
+                        className="rounded-xl"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">المدة (ساعات، ١–٤) *</label>
+                    <div className="flex gap-2 flex-wrap">
+                      {[1, 2, 3, 4].map((h) => (
+                        <Button
+                          key={h}
+                          type="button"
+                          variant={Number(leaveLocalHours) === h ? 'default' : 'outline'}
+                          size="sm"
+                          className="rounded-lg"
+                          onClick={() => {
+                            setLeaveLocalHours(String(h));
+                            setLeaveForm((f) => ({ ...f, hoursCount: String(h) }));
+                          }}
+                        >
+                          {h === 1 ? 'ساعة' : h === 2 ? 'ساعتان' : `${h} ساعات`}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              );
+            }
+            return (
+              <>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">تاريخ البداية *</label>
+                    <Input
+                      type="date"
+                      value={leaveForm.startDate}
+                      onChange={(e) => setLeaveForm((f) => ({ ...f, startDate: e.target.value }))}
+                      required
+                      className="rounded-xl"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1.5">عدد الأيام *</label>
+                    <Input
+                      type="text"
+                      inputMode="numeric"
+                      value={leaveLocalDays}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, '');
+                        setLeaveLocalDays(v);
+                        setLeaveForm((f) => ({ ...f, daysCount: v }));
+                      }}
+                      placeholder="2"
+                      required
+                      className="rounded-xl"
+                    />
+                  </div>
+                </div>
+              </>
+            );
+          })()}
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">السبب (اختياري)</label>
+            <Input
+              value={leaveForm.reason}
+              onChange={(e) => setLeaveForm((f) => ({ ...f, reason: e.target.value }))}
+              placeholder="السبب"
+              className="rounded-xl"
+            />
+          </div>
+
+          <div className="flex gap-2 pt-2">
+            <Button type="button" variant="outline" onClick={() => setAddLeaveOpen(false)} className="rounded-xl">
+              إلغاء
+            </Button>
+            <Button type="submit" disabled={addLeaveMutation.isPending} className="rounded-xl">
+              {addLeaveMutation.isPending ? 'جاري الإرسال...' : 'إرسال الطلب'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </motion.div>
   );
 }

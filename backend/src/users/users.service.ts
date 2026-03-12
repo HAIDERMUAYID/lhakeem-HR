@@ -240,6 +240,8 @@ export class UsersService {
     data: Partial<{
       email: string;
       name: string;
+      phone: string | null;
+      jobCode: string | null;
       role: UserRole;
       departmentId: string | null;
       assignedDepartmentIds: string[];
@@ -247,15 +249,26 @@ export class UsersService {
   ) {
     const { assignedDepartmentIds, ...rest } = data;
     const updateData: Record<string, unknown> = { ...rest };
-    if (data.email) updateData.email = data.email.toLowerCase();
+    if (data.email !== undefined) updateData.email = data.email?.trim() ? (data.email as string).toLowerCase() : null;
+    if (data.phone !== undefined) updateData.phone = data.phone?.trim() || null;
+    if (data.jobCode !== undefined) updateData.jobCode = data.jobCode?.trim() || null;
     const user = await this.prisma.user.update({
       where: { id },
       data: updateData,
-      select: { id: true, email: true, name: true, role: true, departmentId: true },
+      select: { id: true, email: true, name: true, phone: true, jobCode: true, role: true, departmentId: true },
     });
     if (assignedDepartmentIds !== undefined) {
       await this.setAssignedDepartments(id, assignedDepartmentIds);
     }
     return user;
+  }
+
+  /** تعطيل المستخدم (حذف منطقي) */
+  async deactivate(id: string) {
+    return this.prisma.user.update({
+      where: { id },
+      data: { isActive: false },
+      select: { id: true, name: true, isActive: true },
+    });
   }
 }

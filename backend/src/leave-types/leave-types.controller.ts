@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Body, Param, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards } from '@nestjs/common';
 import { LeaveTypesService } from './leave-types.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -32,5 +32,11 @@ export class LeaveTypesController {
   @RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.LEAVE_TYPES_MANAGE)
   async update(@Param('id') id: string, @Body() dto: Partial<{ name: string; nameAr: string; deductFromBalance: boolean; requiresApproval: boolean; annualAllowance: number | null; monthlyAccrual: number | null; isActive: boolean }>) {
     return this.leaveTypesService.update(id, dto);
+  }
+
+  @Delete(':id')
+  @RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.LEAVE_TYPES_MANAGE)
+  async remove(@Param('id') id: string) {
+    return this.leaveTypesService.deactivate(id);
   }
 }

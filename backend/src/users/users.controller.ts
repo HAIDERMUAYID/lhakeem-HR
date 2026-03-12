@@ -1,5 +1,5 @@
-import { Controller, Get, Post, Put, Body, Param, UseGuards, ConflictException } from '@nestjs/common';
-import { IsString, IsOptional, IsArray, MinLength, IsEnum } from 'class-validator';
+import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, ConflictException } from '@nestjs/common';
+import { IsString, IsOptional, IsArray, MinLength, IsEnum, ValidateIf } from 'class-validator';
 import { UserRole } from '@prisma/client';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -39,6 +39,37 @@ class CreateUserDto {
   @IsOptional()
   @IsString()
   departmentId?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  assignedDepartmentIds?: string[];
+}
+
+class UpdateUserDto {
+  @IsString()
+  @MinLength(2, { message: 'الاسم مطلوب' })
+  name: string;
+
+  @IsOptional()
+  @IsString()
+  email?: string;
+
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @IsOptional()
+  @IsString()
+  jobCode?: string;
+
+  @IsEnum(UserRole, { message: 'الدور غير صالح' })
+  role: UserRole;
+
+  @IsOptional()
+  @ValidateIf((_o, v) => v != null)
+  @IsString()
+  departmentId?: string | null;
 
   @IsOptional()
   @IsArray()
@@ -122,5 +153,27 @@ export class UsersController {
     @Body() body: { departmentIds: string[] },
   ) {
     return this.usersService.setAssignedDepartments(id, body.departmentIds ?? []);
+  }
+
+  @Put(':id')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
+  async update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+    return this.usersService.update(id, {
+      name: dto.name.trim(),
+      email: dto.email?.trim() || undefined,
+      phone: dto.phone?.trim() || undefined,
+      jobCode: dto.jobCode?.trim() || undefined,
+      role: dto.role,
+      departmentId: dto.departmentId === '' || dto.departmentId === null ? null : (dto.departmentId || undefined),
+      assignedDepartmentIds: dto.assignedDepartmentIds,
+    });
+  }
+
+  @Delete(':id')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
+  async remove(@Param('id') id: string) {
+    return this.usersService.deactivate(id);
   }
 }

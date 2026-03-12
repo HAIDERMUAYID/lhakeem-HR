@@ -3,9 +3,9 @@
 import { useState } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { UserCog, Shield, UserPlus } from 'lucide-react';
+import { UserCog, Shield, UserPlus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { apiGet, apiPut, apiPost } from '@/lib/api';
+import { apiGet, apiPut, apiPost, apiDelete } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -21,8 +21,11 @@ type User = {
   username?: string;
   email?: string;
   name: string;
+  phone?: string;
+  jobCode?: string;
   role: string;
   permissions: string[];
+  departmentId?: string | null;
   department?: { name: string };
   assignedDepartmentIds?: string[];
   assignedDepartments?: { id: string; name: string }[];
@@ -73,10 +76,19 @@ const ROLES: { value: string; label: string }[] = [
 export default function UsersPage() {
   const canManageUsers = useHasPermission('USERS_MANAGE');
   const [editOpen, setEditOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedPerms, setSelectedPerms] = useState<string[]>([]);
   const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
+  const [editProfileForm, setEditProfileForm] = useState({
+    name: '',
+    email: '',
+    phone: '',
+    jobCode: '',
+    role: 'MANAGER' as string,
+    departmentId: '',
+  });
   const [createForm, setCreateForm] = useState({
     username: '',
     password: '',
@@ -163,11 +175,59 @@ export default function UsersPage() {
     onError: (err: Error) => toast.error(err.message),
   });
 
+  const updateProfileMutation = useMutation({
+    mutationFn: ({ id, ...body }: { id: string; name: string; email?: string; phone?: string; jobCode?: string; role: string; departmentId?: string | null }) =>
+      apiPut(`/api/users/${id}`, {
+        name: body.name.trim(),
+        email: body.email?.trim() || undefined,
+        phone: body.phone?.trim() || undefined,
+        jobCode: body.jobCode?.trim() || undefined,
+        role: body.role,
+        departmentId: body.departmentId === '' ? null : (body.departmentId || undefined),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setEditProfileOpen(false);
+      setSelectedUser(null);
+      toast.success('تم تحديث بيانات المستخدم');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiDelete(`/api/users/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setEditProfileOpen(false);
+      setSelectedUser(null);
+      toast.success('تم حذف المستخدم');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
   const openEdit = (user: User) => {
     setSelectedUser(user);
     setSelectedPerms(user.permissions ?? []);
     setSelectedDeptIds(user.assignedDepartmentIds ?? []);
     setEditOpen(true);
+  };
+
+  const openEditProfile = (user: User) => {
+    setSelectedUser(user);
+    setEditProfileForm({
+      name: user.name,
+      email: user.email ?? '',
+      phone: user.phone ?? '',
+      jobCode: user.jobCode ?? '',
+      role: user.role,
+      departmentId: user.departmentId ?? '',
+    });
+    setEditProfileOpen(true);
+  };
+
+  const handleDelete = (user: User) => {
+    if (typeof window !== 'undefined' && !window.confirm(`حذف المستخدم "${user.name}"؟ لن يتمكن من الدخول للنظام.`)) return;
+    deleteMutation.mutate(user.id);
   };
 
   const togglePerm = (code: string) => {
@@ -268,10 +328,26 @@ export default function UsersPage() {
                     )}
                   </div>
                   <CanDo permission="USERS_MANAGE">
-                    <Button variant="secondary" size="sm" onClick={() => openEdit(user)} className="min-h-[44px]">
-                      <Shield className="h-4 w-4 ml-1" />
-                      الصلاحيات
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button variant="secondary" size="sm" onClick={() => openEditProfile(user)} className="gap-1.5 min-h-[44px]">
+                        <Pencil className="h-4 w-4" />
+                        تعديل
+                      </Button>
+                      <Button variant="secondary" size="sm" onClick={() => openEdit(user)} className="gap-1.5 min-h-[44px]">
+                        <Shield className="h-4 w-4" />
+                        الصلاحيات
+                      </Button>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => handleDelete(user)}
+                        className="gap-1.5 min-h-[44px] text-red-600 hover:text-red-700 hover:bg-red-50"
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        حذف
+                      </Button>
+                    </div>
                   </CanDo>
                 </motion.div>
               ))}
@@ -385,6 +461,102 @@ export default function UsersPage() {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      <Modal
+        open={editProfileOpen}
+        onClose={() => { setEditProfileOpen(false); setSelectedUser(null); }}
+        title={`تعديل المستخدم: ${selectedUser?.name ?? ''}`}
+        className="max-w-2xl w-full"
+      >
+        {selectedUser && (
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الاسم *</label>
+                <Input
+                  value={editProfileForm.name}
+                  onChange={(e) => setEditProfileForm((f) => ({ ...f, name: e.target.value }))}
+                  placeholder="الاسم الكامل"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">البريد الإلكتروني (اختياري)</label>
+                <Input
+                  type="email"
+                  value={editProfileForm.email}
+                  onChange={(e) => setEditProfileForm((f) => ({ ...f, email: e.target.value }))}
+                  placeholder="user@example.com"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">رقم الهاتف (اختياري)</label>
+                <Input
+                  value={editProfileForm.phone}
+                  onChange={(e) => setEditProfileForm((f) => ({ ...f, phone: e.target.value }))}
+                  placeholder="07xxxxxxxx"
+                  dir="ltr"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">كود وظيفي (اختياري)</label>
+                <Input
+                  value={editProfileForm.jobCode}
+                  onChange={(e) => setEditProfileForm((f) => ({ ...f, jobCode: e.target.value }))}
+                  placeholder="مثال: HR-01"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">الدور *</label>
+                <select
+                  value={editProfileForm.role}
+                  onChange={(e) => setEditProfileForm((f) => ({ ...f, role: e.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                >
+                  {ROLES.map((r) => (
+                    <option key={r.value} value={r.value}>{r.label}</option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">القسم (اختياري)</label>
+                <select
+                  value={editProfileForm.departmentId}
+                  onChange={(e) => setEditProfileForm((f) => ({ ...f, departmentId: e.target.value }))}
+                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+                >
+                  <option value="">— لا يوجد —</option>
+                  {departments.map((d) => (
+                    <option key={d.id} value={d.id}>{d.name}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+            <p className="text-xs text-gray-500">اسم الدخول: {selectedUser.username || selectedUser.email || '—'}</p>
+            <div className="flex gap-2 pt-4 border-t border-gray-100">
+              <Button
+                onClick={() =>
+                  updateProfileMutation.mutate({
+                    id: selectedUser.id,
+                    name: editProfileForm.name,
+                    email: editProfileForm.email || undefined,
+                    phone: editProfileForm.phone || undefined,
+                    jobCode: editProfileForm.jobCode || undefined,
+                    role: editProfileForm.role,
+                    departmentId: editProfileForm.departmentId === '' ? null : (editProfileForm.departmentId || undefined),
+                  })
+                }
+                disabled={updateProfileMutation.isPending || !editProfileForm.name.trim()}
+              >
+                {updateProfileMutation.isPending ? 'جاري الحفظ...' : 'حفظ'}
+              </Button>
+              <Button variant="secondary" onClick={() => setEditProfileOpen(false)}>
+                إلغاء
+              </Button>
+            </div>
+          </div>
+        )}
       </Modal>
 
       <Modal

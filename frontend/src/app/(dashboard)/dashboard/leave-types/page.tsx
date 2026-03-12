@@ -3,9 +3,9 @@
 import { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
-import { Calendar, Plus, Pencil } from 'lucide-react';
+import { Calendar, Plus, Pencil, Trash2 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { apiGet, apiPost, apiPut } from '@/lib/api';
+import { apiGet, apiPost, apiPut, apiDelete } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -99,6 +99,20 @@ export default function LeaveTypesPage() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => apiDelete(`/api/leave-types/${id}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leave-types-all'] });
+      toast.success('تم حذف نوع الإجازة');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleDelete = (t: LeaveType) => {
+    if (typeof window !== 'undefined' && !window.confirm(`حذف نوع الإجازة "${t.nameAr}"؟ لن يظهر في القائمة ولن يُستخدم في طلبات جديدة.`)) return;
+    deleteMutation.mutate(t.id);
+  };
 
   const openEdit = (t: LeaveType) => {
     setEditing(t);
@@ -316,10 +330,22 @@ export default function LeaveTypesPage() {
                     </p>
                   </div>
                   {canManage && (
-                    <Button size="sm" variant="ghost" onClick={() => openEdit(t)} className="min-h-[44px]">
-                      <Pencil className="h-4 w-4 ml-1" />
-                      تعديل
-                    </Button>
+                    <div className="flex items-center gap-2">
+                      <Button size="sm" variant="ghost" onClick={() => openEdit(t)} className="min-h-[44px] gap-1.5">
+                        <Pencil className="h-4 w-4" />
+                        تعديل
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        onClick={() => handleDelete(t)}
+                        className="min-h-[44px] gap-1.5 text-red-600 hover:text-red-700 hover:bg-red-50"
+                        disabled={deleteMutation.isPending}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                        حذف
+                      </Button>
+                    </div>
                   )}
                 </motion.div>
               ))}

@@ -81,7 +81,7 @@ const statusLabel: Record<string, string> = {
   REJECTED: 'مرفوضة',
 };
 
-const CHART_COLORS = ['#0ea5e9', '#22c55e', '#ef4444', '#f59e0b', '#8b5cf6'];
+const CHART_COLORS = ['#06b6d4', '#10b981', '#f43f5e', '#f59e0b', '#8b5cf6'];
 const AR_MONTHS: Record<number, string> = {
   1: 'يناير', 2: 'فبراير', 3: 'مارس', 4: 'أبريل', 5: 'مايو', 6: 'يونيو',
   7: 'يوليو', 8: 'أغسطس', 9: 'سبتمبر', 10: 'أكتوبر', 11: 'نوفمبر', 12: 'ديسمبر',
@@ -98,10 +98,10 @@ function formatDuration(daysCount: number, hoursCount?: number | null): string {
 }
 
 const KPI_CARDS = [
-  { key: 'total', label: 'إجمالي الطلبات', icon: FileText, iconColor: 'text-slate-600', iconBg: 'bg-slate-100' },
-  { key: 'pending', label: 'قيد الانتظار', icon: Clock, iconColor: 'text-amber-600', iconBg: 'bg-amber-100' },
-  { key: 'approved', label: 'معتمدة', icon: Check, iconColor: 'text-emerald-600', iconBg: 'bg-emerald-100' },
-  { key: 'rejected', label: 'مرفوضة', icon: X, iconColor: 'text-red-600', iconBg: 'bg-red-100' },
+  { key: 'total', label: 'إجمالي الطلبات', icon: FileText, accent: 'from-slate-500 to-slate-600', iconBg: 'bg-slate-500/10', iconColor: 'text-slate-600' },
+  { key: 'pending', label: 'قيد الانتظار', icon: Clock, accent: 'from-amber-500 to-orange-500', iconBg: 'bg-amber-500/10', iconColor: 'text-amber-600' },
+  { key: 'approved', label: 'معتمدة', icon: Check, accent: 'from-emerald-500 to-teal-500', iconBg: 'bg-emerald-500/10', iconColor: 'text-emerald-600' },
+  { key: 'rejected', label: 'مرفوضة', icon: X, accent: 'from-rose-500 to-red-500', iconBg: 'bg-rose-500/10', iconColor: 'text-rose-600' },
 ];
 
 function SearchableSelect({
@@ -584,37 +584,42 @@ export default function LeavesPage() {
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.35 }}
-      className="space-y-6"
+      className="space-y-8"
     >
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight">الإجازات</h1>
-          <p className="text-gray-500 mt-1 text-sm">طلبات الإجازات والاعتماد — الإجازة الزمنية (بالساعات) تستخدم نفس الرصيد التراكمي، كل ٧ ساعات = يوم • حد الساعات: ١–٤</p>
+      <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-6">
+        <div className="space-y-1">
+          <h1 className="text-3xl sm:text-4xl font-bold text-gray-900 tracking-tight">الإجازات</h1>
+          <p className="text-gray-500 text-sm max-w-xl">
+            طلبات الإجازات والاعتماد — الإجازة الزمنية (بالساعات) تستخدم نفس الرصيد التراكمي، كل ٧ ساعات = يوم • حد الساعات: ١–٤
+          </p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex flex-wrap gap-2 sm:gap-3">
           <Button
             variant="outline"
             onClick={handleExportLeavesCSV}
             disabled={exporting || (data?.total ?? 0) === 0}
-            className="gap-2 rounded-xl border-gray-200 hover:bg-gray-50"
+            className="gap-2 rounded-xl border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors"
           >
             <FileDown className="h-4 w-4" />
             {exporting ? 'جاري التصدير...' : 'تصدير CSV'}
           </Button>
           <Link href="/dashboard/leaves/official-report">
-            <Button variant="outline" className="gap-2 rounded-xl border-gray-200 hover:bg-gray-50">
+            <Button variant="outline" className="gap-2 rounded-xl border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors">
               <FileText className="h-4 w-4" />
-              تقرير الإجازات الرسمي
+              تقرير رسمي
             </Button>
           </Link>
           <Link href="/dashboard/leaves/calendar">
-            <Button variant="outline" className="gap-2 rounded-xl border-gray-200 hover:bg-gray-50">
+            <Button variant="outline" className="gap-2 rounded-xl border-gray-200 hover:bg-gray-50 hover:border-gray-300 transition-colors">
               <CalendarDays className="h-4 w-4" />
               التقويم
             </Button>
           </Link>
-          <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md rounded-xl bg-primary-600 hover:bg-primary-700">
+          <Button
+            onClick={() => setAddOpen(true)}
+            className="gap-2 rounded-xl bg-primary-600 hover:bg-primary-700 shadow-lg shadow-primary-500/25 hover:shadow-primary-500/30 transition-all"
+          >
             <Plus className="h-5 w-5" />
             طلب إجازة
           </Button>
@@ -622,28 +627,29 @@ export default function LeavesPage() {
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-5">
         {KPI_CARDS.map((card, i) => {
           const Icon = card.icon;
           const value = statsData[card.key as keyof StatsResponse] ?? 0;
           return (
             <motion.div
               key={card.key}
-              initial={{ opacity: 0, y: 12 }}
+              initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-              whileHover={{ y: -2 }}
+              transition={{ delay: i * 0.06, duration: 0.35 }}
+              whileHover={{ y: -4, transition: { duration: 0.2 } }}
               className="h-full"
             >
-              <Card className="border border-gray-100/80 shadow-sm overflow-hidden rounded-2xl bg-white h-full hover:shadow-md transition-shadow">
-                <CardContent className="p-5">
+              <Card className="relative border-0 overflow-hidden rounded-2xl bg-white h-full shadow-sm hover:shadow-xl transition-all duration-300 ring-1 ring-gray-100">
+                <div className={cn('absolute top-0 right-0 w-1 h-full bg-gradient-to-b', card.accent)} />
+                <CardContent className="p-5 pl-6">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <p className="text-xs font-medium text-gray-500 uppercase tracking-wide">{card.label}</p>
-                      <p className="text-2xl font-bold text-gray-900 mt-1 tabular-nums">{value}</p>
+                      <p className="text-xs font-semibold text-gray-500 uppercase tracking-wider">{card.label}</p>
+                      <p className="text-2xl sm:text-3xl font-bold text-gray-900 mt-2 tabular-nums">{value}</p>
                     </div>
-                    <div className={`rounded-xl p-2.5 shrink-0 ${card.iconBg}`}>
-                      <Icon className={`h-5 w-5 ${card.iconColor}`} />
+                    <div className={cn('rounded-2xl p-3 shrink-0', card.iconBg)}>
+                      <Icon className={cn('h-6 w-6', card.iconColor)} />
                     </div>
                   </div>
                 </CardContent>
@@ -656,102 +662,114 @@ export default function LeavesPage() {
       {/* Charts */}
       {chartData && (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <Card className="border border-gray-100/80 shadow-sm overflow-hidden rounded-2xl bg-white">
-            <CardContent className="p-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-1">توزيع الطلبات حسب الحالة</h3>
-              <p className="text-sm text-gray-500 mb-4">معتمدة، قيد الانتظار، مرفوضة</p>
-              {Object.values(chartData.byStatus ?? {}).some((v) => v > 0) ? (
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Tooltip
-                        formatter={(value: number, name: string) => [`${value} طلب`, name]}
-                        contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }}
-                      />
-                      <Legend
-                        layout="horizontal"
-                        align="center"
-                        verticalAlign="bottom"
-                        formatter={(value) => <span className="text-sm text-gray-700">{value}</span>}
-                      />
-                      <Pie
-                        data={[
-                          { name: 'معتمدة', value: chartData.byStatus?.APPROVED ?? 0, color: CHART_COLORS[1] },
-                          { name: 'قيد الانتظار', value: chartData.byStatus?.PENDING ?? 0, color: CHART_COLORS[3] },
-                          { name: 'مرفوضة', value: chartData.byStatus?.REJECTED ?? 0, color: CHART_COLORS[2] },
-                        ].filter((d) => d.value > 0)}
-                        cx="50%"
-                        cy="45%"
-                        innerRadius={60}
-                        outerRadius={95}
-                        paddingAngle={3}
-                        dataKey="value"
-                        label={({ name, value, percent }) =>
-                          value > 0 ? `${name}: ${value} (${(percent * 100).toFixed(0)}%)` : ''
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1, duration: 0.35 }}
+          >
+            <Card className="border-0 overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-lg transition-shadow duration-300 ring-1 ring-gray-100">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-0.5">توزيع الطلبات حسب الحالة</h3>
+                <p className="text-sm text-gray-500 mb-5">معتمدة، قيد الانتظار، مرفوضة</p>
+                {Object.values(chartData.byStatus ?? {}).some((v) => v > 0) ? (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <PieChart>
+                        <Tooltip
+                          formatter={(value: number, name: string) => [`${value} طلب`, name]}
+                          contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                        />
+                        <Legend
+                          layout="horizontal"
+                          align="center"
+                          verticalAlign="bottom"
+                          formatter={(value) => <span className="text-sm text-gray-600">{value}</span>}
+                        />
+                        <Pie
+                          data={[
+                            { name: 'معتمدة', value: chartData.byStatus?.APPROVED ?? 0, color: CHART_COLORS[1] },
+                            { name: 'قيد الانتظار', value: chartData.byStatus?.PENDING ?? 0, color: CHART_COLORS[3] },
+                            { name: 'مرفوضة', value: chartData.byStatus?.REJECTED ?? 0, color: CHART_COLORS[2] },
+                          ].filter((d) => d.value > 0)}
+                          cx="50%"
+                          cy="45%"
+                          innerRadius={64}
+                          outerRadius={98}
+                          paddingAngle={4}
+                          dataKey="value"
+                          label={({ name, value, percent }) =>
+                            value > 0 ? `${name}: ${value} (${(percent * 100).toFixed(0)}%)` : ''
+                          }
+                          labelLine={{ strokeWidth: 1.5 }}
+                        >
+                          {[
+                            { name: 'معتمدة', value: chartData.byStatus?.APPROVED ?? 0, color: CHART_COLORS[1] },
+                            { name: 'قيد الانتظار', value: chartData.byStatus?.PENDING ?? 0, color: CHART_COLORS[3] },
+                            { name: 'مرفوضة', value: chartData.byStatus?.REJECTED ?? 0, color: CHART_COLORS[2] },
+                          ]
+                            .filter((d) => d.value > 0)
+                            .map((entry, i) => (
+                              <Cell key={i} fill={entry.color} stroke="rgba(255,255,255,0.95)" strokeWidth={2.5} />
+                            ))}
+                        </Pie>
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-72 flex items-center justify-center text-gray-400 text-sm rounded-xl bg-gray-50/50">لا توجد طلبات لعرض التوزيع</div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15, duration: 0.35 }}
+          >
+            <Card className="border-0 overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-lg transition-shadow duration-300 ring-1 ring-gray-100">
+              <CardContent className="p-6">
+                <h3 className="text-lg font-semibold text-gray-900 mb-0.5">الإجازات حسب الشهر</h3>
+                <p className="text-sm text-gray-500 mb-5">آخر ٦ أشهر</p>
+                {(chartData.byMonth?.length ?? 0) > 0 ? (
+                  <div className="h-72">
+                    <ResponsiveContainer width="100%" height="100%">
+                      <BarChart
+                        data={
+                          [...(chartData.byMonth ?? [])]
+                            .reverse()
+                            .map((m) => ({
+                              name: formatMonthLabel(m.month, m.year),
+                              شهر: formatMonthLabel(m.month, m.year),
+                              طلبات: m.count,
+                            }))
                         }
-                        labelLine={{ strokeWidth: 1.5 }}
+                        layout="vertical"
+                        margin={{ top: 8, right: 24, left: 0, bottom: 8 }}
                       >
-                        {[
-                          { name: 'معتمدة', value: chartData.byStatus?.APPROVED ?? 0, color: CHART_COLORS[1] },
-                          { name: 'قيد الانتظار', value: chartData.byStatus?.PENDING ?? 0, color: CHART_COLORS[3] },
-                          { name: 'مرفوضة', value: chartData.byStatus?.REJECTED ?? 0, color: CHART_COLORS[2] },
-                        ]
-                          .filter((d) => d.value > 0)
-                          .map((entry, i) => (
-                            <Cell key={i} fill={entry.color} stroke="rgba(255,255,255,0.9)" strokeWidth={2} />
-                          ))}
-                      </Pie>
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="h-72 flex items-center justify-center text-gray-400 text-sm">لا توجد طلبات لعرض التوزيع</div>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="border border-gray-100/80 shadow-sm overflow-hidden rounded-2xl bg-white">
-            <CardContent className="p-6">
-              <h3 className="text-base font-semibold text-gray-900 mb-1">الإجازات حسب الشهر</h3>
-              <p className="text-sm text-gray-500 mb-4">آخر ٦ أشهر</p>
-              {(chartData.byMonth?.length ?? 0) > 0 ? (
-                <div className="h-72">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <BarChart
-                      data={
-                        [...(chartData.byMonth ?? [])]
-                          .reverse()
-                          .map((m) => ({
-                            name: formatMonthLabel(m.month, m.year),
-                            شهر: formatMonthLabel(m.month, m.year),
-                            طلبات: m.count,
-                          }))
-                      }
-                      layout="vertical"
-                      margin={{ top: 8, right: 24, left: 0, bottom: 8 }}
-                    >
-                      <CartesianGrid strokeDasharray="3 3" stroke="#f3f4f6" horizontal={true} vertical={false} />
-                      <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
-                      <YAxis type="category" dataKey="شهر" width={100} tick={{ fontSize: 12 }} />
-                      <Tooltip
-                        formatter={(value: number) => [`${value} طلب`, 'عدد الطلبات']}
-                        contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb' }}
-                        labelFormatter={(label) => label}
-                      />
-                      <Bar dataKey="طلبات" name="طلبات" fill={CHART_COLORS[0]} radius={[0, 6, 6, 0]} maxBarSize={36} />
-                    </BarChart>
-                  </ResponsiveContainer>
-                </div>
-              ) : (
-                <div className="h-72 flex items-center justify-center text-gray-400 text-sm">لا توجد بيانات للأشهر الأخيرة</div>
-              )}
-            </CardContent>
-          </Card>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" horizontal={true} vertical={false} />
+                        <XAxis type="number" tick={{ fontSize: 12 }} allowDecimals={false} />
+                        <YAxis type="category" dataKey="شهر" width={100} tick={{ fontSize: 12 }} />
+                        <Tooltip
+                          formatter={(value: number) => [`${value} طلب`, 'عدد الطلبات']}
+                          contentStyle={{ borderRadius: 12, border: '1px solid #e5e7eb', boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}
+                          labelFormatter={(label) => label}
+                        />
+                        <Bar dataKey="طلبات" name="طلبات" fill={CHART_COLORS[0]} radius={[0, 8, 8, 0]} maxBarSize={40} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                ) : (
+                  <div className="h-72 flex items-center justify-center text-gray-400 text-sm rounded-xl bg-gray-50/50">لا توجد بيانات للأشهر الأخيرة</div>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
       )}
 
       {/* Search & Filters Bar */}
-      <Card className="border border-gray-100/80 shadow-sm overflow-hidden rounded-2xl bg-white">
-        <div className="border-b border-gray-100 bg-gray-50/60 p-4 sm:p-5">
+      <Card className="border-0 shadow-sm overflow-hidden rounded-2xl bg-white ring-1 ring-gray-100">
+        <div className="border-b border-gray-100 bg-gradient-to-b from-gray-50/80 to-white p-4 sm:p-5">
           <div className="flex flex-col gap-4">
             <div className="flex flex-col sm:flex-row gap-3">
               <div className="relative flex-1 min-w-0">
@@ -760,7 +778,7 @@ export default function LeavesPage() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="بحث بالاسم، القسم، أو نوع الإجازة..."
-                  className="pr-10 rounded-xl border-gray-200 focus:ring-2 focus:ring-primary-500/20"
+                  className="pr-10 rounded-xl border-gray-200 focus:ring-2 focus:ring-primary-500/20 focus:border-primary-400"
                 />
               </div>
               <Button
@@ -810,7 +828,7 @@ export default function LeavesPage() {
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.2 }}
-                className="flex flex-wrap gap-4 p-4 rounded-xl bg-white border border-gray-100"
+                className="flex flex-wrap gap-4 p-4 rounded-xl bg-white/80 border border-gray-100 shadow-sm"
               >
                 <div className="min-w-[140px]">
                   <label className="block text-xs font-medium text-gray-500 mb-1">الحالة</label>
@@ -868,7 +886,7 @@ export default function LeavesPage() {
                   initial={{ opacity: 0 }}
                   animate={{ opacity: 1 }}
                   transition={{ delay: Math.min(i * 0.03, 0.15) }}
-                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 hover:bg-gray-50/70 transition-colors"
+                  className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 p-4 sm:p-5 hover:bg-gray-50/80 transition-colors rounded-lg mx-2 sm:mx-3 my-1"
                 >
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900">{req.employee.fullName}</p>
@@ -876,7 +894,7 @@ export default function LeavesPage() {
                       {req.employee.department?.name} • {req.leaveType.nameAr}
                     </p>
                     <p className="text-sm text-gray-600 mt-1 flex items-center gap-1 flex-wrap">
-                      <CalendarCheck className="h-4 w-4 shrink-0" />
+                      <CalendarCheck className="h-4 w-4 shrink-0 text-primary-500" />
                       {new Date(req.startDate).toLocaleDateString('ar-EG')} —{' '}
                       {new Date(req.endDate).toLocaleDateString('ar-EG')}
                       <span className="text-gray-500">({formatDuration(req.daysCount, req.hoursCount)})</span>
@@ -887,7 +905,7 @@ export default function LeavesPage() {
                     <Button
                       size="sm"
                       variant="outline"
-                      className="gap-1 min-h-[44px]"
+                      className="gap-1 min-h-[44px] rounded-xl border-gray-200 hover:bg-gray-100"
                       onClick={() => {
                         setDetailsId(req.id);
                         setDetailsOpen(true);
@@ -937,7 +955,9 @@ export default function LeavesPage() {
                         <Trash2 className="h-4 w-4" /> حذف
                       </Button>
                     )}
-                    <Badge variant={statusVariant[req.status] || 'default'}>{statusLabel[req.status] || req.status}</Badge>
+                    <Badge variant={statusVariant[req.status] || 'default'} className="rounded-lg font-medium">
+                      {statusLabel[req.status] || req.status}
+                    </Badge>
                   </div>
                 </motion.div>
               ))}
@@ -946,7 +966,7 @@ export default function LeavesPage() {
         </CardContent>
 
         {total > 0 && (
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-gray-100 px-5 py-4 bg-gray-50/60">
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 border-t border-gray-100 px-5 py-4 bg-gradient-to-b from-white to-gray-50/50">
             <p className="text-sm text-gray-500 tabular-nums">عرض {requests.length} من {total}</p>
             <div className="flex items-center gap-2">
               <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page <= 1} className="gap-1 rounded-lg">
