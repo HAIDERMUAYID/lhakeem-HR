@@ -49,6 +49,7 @@ import { TableSkeleton } from '@/components/shared/page-skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
 import { downloadCSV } from '@/lib/export';
+import { cn } from '@/lib/utils';
 
 type LeaveRequest = {
   id: string;
@@ -433,6 +434,37 @@ export default function LeavesPage() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  const [cumulativeInfo, setCumulativeInfo] = useState<{
+    currentBalance: number;
+  } | null>(null);
+
+  const shouldFetchCumulative =
+    addOpen && !!form.employeeId && !!form.leaveTypeId;
+
+  useEffect(() => {
+    if (!shouldFetchCumulative) {
+      setCumulativeInfo(null);
+      return;
+    }
+    const controller = new AbortController();
+    const load = async () => {
+      try {
+        const res = await apiGet<{
+          currentBalance: number;
+        }>(
+          `/api/leave-requests/cumulative-balance?employeeId=${form.employeeId}&leaveTypeId=${form.leaveTypeId}`,
+          { signal: controller.signal as any },
+        );
+        setCumulativeInfo({ currentBalance: res.currentBalance });
+      } catch {
+        // تجاهل الخطأ، نعرض النموذج بدون رصيد تراكمي
+        setCumulativeInfo(null);
+      }
+    };
+    load();
+    return () => controller.abort();
+  }, [addOpen, form.employeeId, form.leaveTypeId]);
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => apiPost(`/api/leave-requests/${id}/approve`, {}),
@@ -1038,6 +1070,38 @@ export default function LeavesPage() {
           }}
           className="space-y-6"
         >
+          {cumulativeInfo && (
+            <section className="rounded-2xl border border-amber-100 bg-amber-50/70 p-4 space-y-2">
+              <p className="text-xs font-semibold text-amber-800 flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                حالة الرصيد التراكمي
+              </p>
+              {(() => {
+                const temporal = isTemporalLeave;
+                const hoursRequested =
+                  useHours || temporal ? Math.min(HOURS_MAX, Math.max(HOURS_MIN, Number(localHoursCount) || 1)) : 0;
+                const daysRequested =
+                  !useHours && !temporal ? (Number(localDaysCount) || 0) : hoursRequested / HOURS_PER_DAY;
+                const current = cumulativeInfo.currentBalance;
+                const predicted = current - daysRequested;
+                const isNegative = predicted < 0;
+                return (
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 text-xs sm:text-sm">
+                    <div>
+                      <p className="text-gray-700">
+                        الرصيد التراكمي الحالي: <span className="font-semibold">{current.toFixed(2)} يوم</span>
+                      </p>
+                      <p className={cn('mt-0.5', isNegative ? 'text-amber-800 font-semibold' : 'text-gray-600')}>
+                        بعد هذه الإجازة سيصبح الرصيد:{' '}
+                        <span className="font-semibold">{predicted.toFixed(2)} يوم</span>
+                        {isNegative && ' — تنبيه: لا يوجد رصيد كافٍ، لكن سيتم قبول الطلب.'}
+                      </p>
+                    </div>
+                  </div>
+                );
+              })()}
+            </section>
+          )}
           <section className="rounded-2xl border border-gray-100 bg-white p-4 sm:p-5 space-y-4">
             <h3 className="text-sm font-semibold text-gray-800 flex items-center gap-2">
               <FileText className="h-4 w-4 text-primary-600" />
@@ -1274,7 +1338,7 @@ export default function LeavesPage() {
           {balanceExceeded && (
             <div className="flex items-center gap-2 py-3 px-4 rounded-xl bg-red-50 border border-red-100 text-red-700 text-sm">
               <AlertCircle className="h-4 w-4 shrink-0" />
-              <span>رصيد غير كافٍ</span>
+              <span>رصيد غير كافٍ — سيتم قبول الطلب لكن سيصبح الرصيد سالباً.</span>
             </div>
           )}
 
@@ -1284,7 +1348,7 @@ export default function LeavesPage() {
             </Button>
             <Button
               type="submit"
-              disabled={addMutation.isPending || balanceExceeded || !form.leaveTypeId || (isTemporalLeave && !form.startTime)}
+              disabled={addMutation.isPending || !form.leaveTypeId || (isTemporalLeave && !form.startTime)}
               className="rounded-xl flex-1 sm:flex-none"
             >
               {addMutation.isPending ? 'جاري الإرسال...' : 'إرسال الطلب'}

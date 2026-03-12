@@ -73,6 +73,9 @@ export default function DeviceDetailPage() {
   const [conflictChoice, setConflictChoice] = useState<'move' | 'add_both' | 'skip' | null>(null);
   const [addStep, setAddStep] = useState<'select' | 'ids' | 'confirm'>('select');
   const [addSearch, setAddSearch] = useState('');
+  /** أسماء الموظفين المختارين عند الانتقال لخطوة إدخال المعرف (لتجنب ظهور الـ ID إذا تغيّرت القائمة) */
+  const [selectedEmployeesSnapshot, setSelectedEmployeesSnapshot] = useState<{ id: string; fullName: string }[]>([]);
+  const [addStepLoading, setAddStepLoading] = useState(false);
 
   const { data: device, isLoading, error } = useQuery({
     queryKey: ['device', deviceId],
@@ -156,11 +159,49 @@ export default function DeviceDetailPage() {
     });
   };
 
-  const goToIdsStep = () => {
+  const goToIdsStep = async () => {
     if (selectedEmployeeIds.size === 0) {
       toast.error('اختر موظفاً واحداً على الأقل');
       return;
     }
+    const ids = Array.from(selectedEmployeeIds);
+    const snapshot: { id: string; fullName: string }[] = [];
+    const needFetch = ids.filter((id) => {
+      const name = employeesList.find((e) => e.id === id)?.fullName;
+      return !name || name.trim() === '' || name === id;
+    });
+
+    if (needFetch.length > 0) {
+      setAddStepLoading(true);
+      try {
+        const fetched = await Promise.all(
+          needFetch.map(async (id) => {
+            const emp = await apiGet<{ fullName: string }>(`/api/employees/${id}`);
+            return { id, fullName: emp?.fullName?.trim() || id };
+          }),
+        );
+        const byId = new Map(fetched.map((e) => [e.id, e.fullName]));
+        for (const id of ids) {
+          const fromList = employeesList.find((e) => e.id === id)?.fullName;
+          const name = (fromList?.trim() && fromList !== id ? fromList : null) ?? byId.get(id) ?? id;
+          snapshot.push({ id, fullName: name });
+        }
+      } catch {
+        toast.error('تعذّر تحميل أسماء الموظفين');
+        setAddStepLoading(false);
+        return;
+      }
+      setAddStepLoading(false);
+    } else {
+      for (const id of ids) {
+        snapshot.push({
+          id,
+          fullName: employeesList.find((e) => e.id === id)?.fullName ?? id,
+        });
+      }
+    }
+
+    setSelectedEmployeesSnapshot(snapshot);
     setFingerprintInputs({});
     setAddStep('ids');
   };
@@ -178,16 +219,18 @@ export default function DeviceDetailPage() {
     const usedIds = initialUsedIds ?? new Set((device?.fingerprints ?? []).map((f) => f.fingerprintId));
     const errors: string[] = [];
 
+    const getName = (eid: string) =>
+      selectedEmployeesSnapshot.find((s) => s.id === eid)?.fullName ??
+      employeesList.find((e) => e.id === eid)?.fullName ??
+      eid;
     for (const empId of list) {
       const fid = (fingerprintInputs[empId] ?? '').trim();
       if (!fid) {
-        const emp = employeesList.find((e) => e.id === empId);
-        errors.push(emp ? `معرف البصمة مطلوب لـ ${emp.fullName}` : 'معرف البصمة مطلوب');
+        errors.push(`معرف البصمة مطلوب لـ ${getName(empId)}`);
         continue;
       }
       if (usedIds.has(fid)) {
-        const emp = employeesList.find((e) => e.id === empId);
-        errors.push(emp ? `معرف البصمة "${fid}" مستخدم على هذا الجهاز (${emp.fullName})` : `معرف "${fid}" مكرر`);
+        errors.push(`معرف البصمة "${fid}" مستخدم على هذا الجهاز (${getName(empId)})`);
         continue;
       }
 
@@ -195,10 +238,9 @@ export default function DeviceDetailPage() {
       const onOtherDevices = existing.filter((r) => r.deviceId !== deviceId);
 
       if (onOtherDevices.length > 0) {
-        const emp = employeesList.find((e) => e.id === empId);
         setConflictEmployee({
           employeeId: empId,
-          fullName: emp?.fullName ?? 'موظف',
+          fullName: getName(empId),
           otherDevices: onOtherDevices.map((r) => ({ recordId: r.id, deviceName: r.device.name })),
           fingerprintId: fid,
         });
@@ -278,7 +320,11 @@ export default function DeviceDetailPage() {
     const list = Array.from(selectedEmployeeIds);
     const missing = list.filter((eid) => !(fingerprintInputs[eid] ?? '').trim());
     if (missing.length > 0) {
-      const names = missing.map((eid) => employeesList.find((e) => e.id === eid)?.fullName ?? eid).join(', ');
+      const getName = (eid: string) =>
+        selectedEmployeesSnapshot.find((s) => s.id === eid)?.fullName ??
+        employeesList.find((e) => e.id === eid)?.fullName ??
+        eid;
+      const names = missing.map(getName).join(', ');
       toast.error(`أدخل معرف البصمة للموظفين: ${names}`);
       return;
     }
@@ -469,6 +515,8 @@ export default function DeviceDetailPage() {
           setAddStep('select');
           setSelectedEmployeeIds(new Set());
           setFingerprintInputs({});
+          setSelectedEmployeesSnapshot([]);
+          setAddStepLoading(false);
         }}
         title={addStep === 'select' ? 'اختيار موظفين' : addStep === 'ids' ? 'معرف البصمة لكل موظف' : 'تأكيد'}
         className="max-w-2xl max-h-[85vh] flex flex-col"
@@ -509,8 +557,12 @@ export default function DeviceDetailPage() {
               <Button variant="outline" onClick={() => setAddOpen(false)} className="min-h-[44px]">
                 إلغاء
               </Button>
-              <Button onClick={goToIdsStep} className="min-h-[44px]">
-                التالي: إدخال معرف البصمة
+              <Button
+                onClick={() => void goToIdsStep()}
+                disabled={addStepLoading}
+                className="min-h-[44px]"
+              >
+                {addStepLoading ? 'جاري التحميل...' : 'التالي: إدخال معرف البصمة'}
               </Button>
             </div>
           </>
@@ -520,10 +572,13 @@ export default function DeviceDetailPage() {
             <p className="text-sm text-gray-600 mb-4">أدخل معرف البصمة على هذا الجهاز لكل موظف. لا يُقبل تكرار المعرف على نفس الجهاز.</p>
             <div className="flex-1 overflow-auto min-h-0 border rounded-xl border-gray-200 max-h-80 space-y-2 p-2">
               {Array.from(selectedEmployeeIds).map((empId) => {
-                const emp = employeesList.find((e) => e.id === empId);
+                const name =
+                  selectedEmployeesSnapshot.find((s) => s.id === empId)?.fullName ??
+                  employeesList.find((e) => e.id === empId)?.fullName ??
+                  empId;
                 return (
                   <div key={empId} className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-                    <span className="font-medium min-w-[140px]">{emp?.fullName ?? empId}</span>
+                    <span className="font-medium min-w-[140px]">{name}</span>
                     <Input
                       value={fingerprintInputs[empId] ?? ''}
                       onChange={(e) => setFingerprintInputs((prev) => ({ ...prev, [empId]: e.target.value }))}

@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ChevronLeft } from 'lucide-react';
+import { useBreadcrumbTitle } from '@/contexts/breadcrumb-title';
 
 const routeLabels: Record<string, string> = {
   dashboard: 'لوحة التحكم',
@@ -29,11 +30,16 @@ const routeLabels: Record<string, string> = {
 
 export function Breadcrumb() {
   const pathname = usePathname();
+  const { lastSegmentLabel } = useBreadcrumbTitle();
   const segments = pathname.split('/').filter(Boolean);
 
   if (segments.length === 0) return null;
 
-  const lastLabel = routeLabels[segments[segments.length - 1]] ?? segments[segments.length - 1];
+  const lastSegment = segments[segments.length - 1];
+  const isIdLike = !routeLabels[lastSegment] && lastSegment.length > 20;
+  const lastLabel = isIdLike
+    ? (lastSegmentLabel ?? 'تفاصيل')
+    : (routeLabels[lastSegment] ?? lastSegment);
 
   return (
     <nav className="flex items-center gap-1 text-xs sm:text-sm text-gray-500 mb-3 sm:mb-4 overflow-x-auto overflow-y-hidden scrollbar-hide min-h-[32px]" aria-label="مسار التنقل">
@@ -53,8 +59,11 @@ export function Breadcrumb() {
       <span className="hidden sm:flex items-center gap-1 flex-wrap">
         {segments.map((segment, i) => {
           const href = '/' + segments.slice(0, i + 1).join('/');
-          const label = routeLabels[segment] ?? segment;
+          const isId = !routeLabels[segment] && segment.length > 20;
           const isLast = i === segments.length - 1;
+          const label = isId
+            ? (isLast && lastSegmentLabel ? lastSegmentLabel : 'تفاصيل')
+            : (routeLabels[segment] ?? segment);
           return (
             <span key={href} className="flex items-center gap-1">
               {i > 0 && (

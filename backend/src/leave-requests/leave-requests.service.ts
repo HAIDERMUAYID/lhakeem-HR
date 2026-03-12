@@ -47,8 +47,109 @@ export class LeaveRequestsService {
   ) {}
 
   /**
-   * رصيد الموظف: رصيد واحد مخزَن (leaveBalance). يُخصم عند اعتماد إجازة ويُزاد بالاستحقاق اليومي.
-   * عند الإدخال يُحسب من (قيمة + تاريخ «لغاية») ويُخزَن مرة واحدة في الموظف.
+   * إرجاع أحدث baseline لرمصيد إجازة معيَّنة لموظف، إن وُجد.
+   */
+  private async getLatestBaseline(employeeId: string, leaveTypeId: string) {
+    return this.prisma.leaveBalanceBaseline.findFirst({
+      where: { employeeId, leaveTypeId },
+      orderBy: { baselineDate: 'desc' },
+    });
+  }
+
+  /**
+   * حساب الرصيد التراكمي لإجازة معينة حتى تاريخ محدد.
+   * يعتمد على baseline + الاستحقاق الشهري + الاستهلاك من طلبات الإجازة المعتمدة.
+   */
+  async calculateCumulativeBalance(params: {
+    employeeId: string;
+    leaveTypeId: string;
+    asOfDate?: Date;
+  }): Promise<{
+    baselineBalance: number;
+    baselineDate: Date | null;
+    accruedAfterBaseline: number;
+    consumedAfterBaseline: number;
+    currentBalance: number;
+    monthlyAccrual: number;
+  }> {
+    const { employeeId, leaveTypeId, asOfDate } = params;
+    const asOf = asOfDate ?? new Date();
+
+    const [baseline, leaveType] = await Promise.all([
+      this.getLatestBaseline(employeeId, leaveTypeId),
+      this.prisma.leaveType.findUnique({
+        where: { id: leaveTypeId },
+        select: { monthlyAccrual: true },
+      }),
+    ]);
+
+    const monthlyAccrual =
+      leaveType?.monthlyAccrual != null ? Number(leaveType.monthlyAccrual) : DEFAULT_MONTHLY_ACCRUAL;
+
+    if (!baseline) {
+      return {
+        baselineBalance: 0,
+        baselineDate: null,
+        accruedAfterBaseline: 0,
+        consumedAfterBaseline: 0,
+        currentBalance: 0,
+        monthlyAccrual,
+      };
+    }
+
+    const baselineDate = baseline.baselineDate;
+
+    // حساب الفرق بالأشهر (تقريباً) بين baseline و asOf
+    const start = new Date(baselineDate);
+    const end = new Date(asOf);
+    const yearsDiff = end.getFullYear() - start.getFullYear();
+    const monthsDiffRaw = yearsDiff * 12 + (end.getMonth() - start.getMonth());
+    const daysDiff = end.getDate() - start.getDate();
+    const monthsDiff = Math.max(0, monthsDiffRaw + daysDiff / 30);
+
+    const accruedAfterBaseline = monthsDiff * monthlyAccrual;
+
+    // الاستهلاك بعد baseline من طلبات الإجازة المعتمدة لهذا النوع
+    const approvedLeaves = await this.prisma.leaveRequest.findMany({
+      where: {
+        employeeId,
+        leaveTypeId,
+        status: LeaveStatus.APPROVED,
+        startDate: {
+          gte: baselineDate,
+          lte: asOf,
+        },
+      },
+      select: { daysCount: true, hoursCount: true },
+    });
+
+    let consumedAfterBaseline = 0;
+    for (const lv of approvedLeaves) {
+      const days = lv.daysCount ?? 0;
+      const hours = lv.hoursCount != null ? Number(lv.hoursCount) : null;
+      if (hours != null && hours > 0) {
+        consumedAfterBaseline += hours / HOURS_PER_DAY;
+      } else {
+        consumedAfterBaseline += days;
+      }
+    }
+
+    const baselineBalanceNum = Number(baseline.baselineBalance);
+    const currentBalance = baselineBalanceNum + accruedAfterBaseline - consumedAfterBaseline;
+
+    return {
+      baselineBalance: baselineBalanceNum,
+      baselineDate,
+      accruedAfterBaseline,
+      consumedAfterBaseline,
+      currentBalance,
+      monthlyAccrual,
+    };
+  }
+
+  /**
+   * رصيد الموظف القديم (المخزَّن في employee.leaveBalance).
+   * يُستخدم للتوافق مع الواجهات الحالية، لكن منطق الرصيد التراكمي الذكي يُدار عبر baselines منفصلة.
    */
   async getBalanceInfo(employeeId: string, leaveTypeId?: string | null, _asOfDate?: Date | string | null) {
     const employee = await this.prisma.employee.findUnique({
@@ -123,6 +224,65 @@ export class LeaveRequestsService {
   async getEffectiveBalance(employeeId: string): Promise<number> {
     const info = await this.getBalanceInfo(employeeId, undefined);
     return info.totalBalanceCumulative;
+  }
+
+  /**
+   * تعيين / تحديث baseline جديد لرصيد إجازة موظف معيّن.
+   */
+  async setLeaveBalanceBaseline(params: {
+    employeeId: string;
+    leaveTypeId: string;
+    baselineDate: Date;
+    baselineBalance: number;
+  }) {
+    const { employeeId, leaveTypeId, baselineDate, baselineBalance } = params;
+    if (!employeeId?.trim()) {
+      throw new BadRequestException('employeeId مطلوب');
+    }
+    if (!leaveTypeId?.trim()) {
+      throw new BadRequestException('leaveTypeId مطلوب');
+    }
+    if (!baselineDate || Number.isNaN(baselineDate.getTime())) {
+      throw new BadRequestException('baselineDate غير صالح');
+    }
+
+    const emp = await this.prisma.employee.findUnique({ where: { id: employeeId } });
+    if (!emp) throw new NotFoundException('الموظف غير موجود');
+
+    const lt = await this.prisma.leaveType.findUnique({ where: { id: leaveTypeId } });
+    if (!lt) throw new NotFoundException('نوع الإجازة غير موجود');
+
+    const baselineBalanceNum = Number(baselineBalance);
+
+    const baseline = await this.prisma.leaveBalanceBaseline.upsert({
+      where: {
+        employeeId_leaveTypeId: {
+          employeeId,
+          leaveTypeId,
+        },
+      },
+      update: {
+        baselineDate,
+        baselineBalance: baselineBalanceNum,
+      },
+      create: {
+        employeeId,
+        leaveTypeId,
+        baselineDate,
+        baselineBalance: baselineBalanceNum,
+      },
+    });
+
+    // تحديث رصيد الموظف المسجَّل ليعكس الرصيد التراكمي الجديد كنقطة بداية
+    await this.prisma.employee.update({
+      where: { id: employeeId },
+      data: {
+        leaveBalance: baselineBalanceNum,
+        balanceStartDate: null,
+      },
+    });
+
+    return baseline;
   }
 
   /** الرصيد الفعلي لعدة موظفين (للعرض في قائمة الموظفين — الرصيد المعتمد للإجازات الاعتيادية) */
@@ -430,14 +590,6 @@ export class LeaveRequestsService {
       dto.createdByUserId.trim() !== '';
 
     if (autoApprove) {
-      if (leaveType.deductFromBalance) {
-        const effectiveBalance = await this.getEffectiveBalance(dto.employeeId);
-        if (effectiveBalance < (daysCount ?? 0)) {
-          throw new BadRequestException(
-            `رصيد الإجازات غير كافٍ (المتاح: ${effectiveBalance.toFixed(2)}، المطلوب: ${daysCount ?? 0})`,
-          );
-        }
-      }
       const now = new Date();
       const created = await this.prisma.leaveRequest.create({
         data: {
@@ -523,18 +675,7 @@ export class LeaveRequestsService {
       }
     }
 
-    if (status === 'APPROVED' && req.leaveType.deductFromBalance) {
-      const effectiveBalance = await this.getEffectiveBalance(req.employeeId);
-      if (effectiveBalance < req.daysCount) {
-        throw new BadRequestException(
-          `رصيد الإجازات غير كافٍ (المتاح: ${effectiveBalance.toFixed(2)}، المطلوب: ${req.daysCount})`
-        );
-      }
-      await this.prisma.employee.update({
-        where: { id: req.employeeId },
-        data: { leaveBalance: { decrement: req.daysCount } },
-      });
-    }
+    // لم نَعُد نمنع الاعتماد بسبب الرصيد، بل يتم الاكتفاء بالتنبيه في الواجهة الأمامية.
 
     const updated = await this.prisma.leaveRequest.update({
       where: { id },

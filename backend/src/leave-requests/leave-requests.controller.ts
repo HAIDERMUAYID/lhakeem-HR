@@ -30,6 +30,26 @@ export class LeaveRequestsController {
     return this.leaveRequestsService.getBalanceInfo(employeeId, leaveTypeId ?? undefined, asOf ?? undefined);
   }
 
+  @Get('cumulative-balance')
+  async getCumulativeBalance(
+    @Query('employeeId') employeeId: string,
+    @Query('leaveTypeId') leaveTypeId: string,
+    @Query('asOf') asOf?: string,
+  ) {
+    if (!employeeId?.trim() || !leaveTypeId?.trim()) {
+      throw new BadRequestException('employeeId و leaveTypeId مطلوبان');
+    }
+    const asOfDate =
+      asOf?.trim() && /^\d{4}-\d{2}-\d{2}$/.test(asOf)
+        ? new Date(asOf)
+        : undefined;
+    return this.leaveRequestsService.calculateCumulativeBalance({
+      employeeId: employeeId.trim(),
+      leaveTypeId: leaveTypeId.trim(),
+      asOfDate,
+    });
+  }
+
   @Get('effective-balances')
   async getEffectiveBalances(@Query('ids') ids?: string) {
     const list = ids?.split(',').map((s) => s.trim()).filter(Boolean) ?? [];
@@ -130,6 +150,32 @@ export class LeaveRequestsController {
       endDate: dto.endDate ? new Date(dto.endDate) : undefined,
       startTime: dto.startTime,
       createdByUserId: user?.id,
+    });
+  }
+
+  @Post('cumulative-baseline')
+  async setCumulativeBaseline(
+    @Body()
+    dto: {
+      employeeId: string;
+      leaveTypeId: string;
+      baselineDate: string;
+      baselineBalance: number;
+    },
+  ) {
+    const { employeeId, leaveTypeId, baselineDate, baselineBalance } = dto;
+    if (!employeeId?.trim() || !leaveTypeId?.trim()) {
+      throw new BadRequestException('employeeId و leaveTypeId مطلوبان');
+    }
+    if (!baselineDate?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(baselineDate)) {
+      throw new BadRequestException('baselineDate يجب أن يكون بالتنسيق YYYY-MM-DD');
+    }
+    const date = new Date(baselineDate);
+    return this.leaveRequestsService.setLeaveBalanceBaseline({
+      employeeId: employeeId.trim(),
+      leaveTypeId: leaveTypeId.trim(),
+      baselineDate: date,
+      baselineBalance,
     });
   }
 

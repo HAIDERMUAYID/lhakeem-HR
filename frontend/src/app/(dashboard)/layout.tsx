@@ -5,6 +5,7 @@ import { useRouter, usePathname } from 'next/navigation';
 import { Sidebar, SidebarTrigger } from '@/components/layout/sidebar';
 import { Header } from '@/components/layout/header';
 import { Breadcrumb } from '@/components/layout/breadcrumb';
+import { BreadcrumbTitleProvider } from '@/contexts/breadcrumb-title';
 import { CopyrightFooter } from '@/components/layout/copyright-footer';
 import { cn } from '@/lib/utils';
 import { canAccessPath } from '@/lib/route-permissions';
@@ -109,8 +110,10 @@ export default function DashboardLayout({
       >
         <Header userName={user?.name} sidebarTrigger={<SidebarTrigger onClick={() => setMobileMenuOpen(true)} />} />
         <main className="flex-1 p-4 sm:p-6 md:p-8">
-          <Breadcrumb />
-          {children}
+          <BreadcrumbTitleProvider>
+            <Breadcrumb />
+            {children}
+          </BreadcrumbTitleProvider>
         </main>
         <CopyrightFooter className="border-t border-gray-200/80 bg-white/50" />
       </div>

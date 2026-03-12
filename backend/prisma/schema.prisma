@@ -96,6 +96,7 @@ model Employee {
   absences       Absence[]
   workSchedules  WorkSchedule[]
   fingerprints   EmployeeFingerprint[]
+  leaveBalanceBaselines LeaveBalanceBaseline[]
 
   @@index([fullName])
   @@index([departmentId, isActive])
@@ -158,6 +159,7 @@ model LeaveType {
   updatedAt       DateTime @updatedAt @map("updated_at")
 
   leaveRequests LeaveRequest[]
+  leaveBalanceBaselines LeaveBalanceBaseline[]
 
   @@map("leave_types")
 }
@@ -184,6 +186,22 @@ model LeaveRequest {
 
   @@index([employeeId, status, startDate, endDate])
   @@map("leave_requests")
+}
+
+model LeaveBalanceBaseline {
+  id              String   @id @default(cuid())
+  employeeId      String   @map("employee_id")
+  leaveTypeId     String   @map("leave_type_id")
+  baselineDate    DateTime @map("baseline_date")
+  baselineBalance Decimal  @map("baseline_balance")
+  createdAt       DateTime @default(now()) @map("created_at")
+  updatedAt       DateTime @updatedAt @map("updated_at")
+
+  employee  Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+  leaveType LeaveType @relation(fields: [leaveTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([employeeId, leaveTypeId])
+  @@map("leave_balance_baselines")
 }
 
 enum LeaveStatus {
