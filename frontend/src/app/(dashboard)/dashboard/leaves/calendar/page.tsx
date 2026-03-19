@@ -21,6 +21,7 @@ import { Badge } from '@/components/ui/badge';
 import { Modal } from '@/components/ui/modal';
 import { Input } from '@/components/ui/input';
 import { useDebounce } from '@/hooks/use-debounce';
+import { formatDeptUnit } from '@/lib/utils';
 
 type LeaveItem = {
   id: string;
@@ -33,6 +34,7 @@ type LeaveItem = {
     jobTitle?: string;
     departmentId?: string;
     department?: { id: string; name: string };
+    unit?: { id: string; name: string } | null;
   };
   leaveType: { id: string; nameAr: string };
 };
@@ -89,7 +91,12 @@ export default function LeaveCalendarPage() {
       if (debouncedSearch) {
         const term = debouncedSearch.toLowerCase();
         const matchName = l.employee.fullName?.toLowerCase().includes(term);
-        const matchDept = l.employee.department?.name?.toLowerCase().includes(term);
+        const matchDept = formatDeptUnit({
+          departmentName: l.employee.department?.name,
+          unitName: l.employee.unit?.name,
+        })
+          .toLowerCase()
+          .includes(term);
         const matchTitle = l.employee.jobTitle?.toLowerCase().includes(term);
         const matchLeaveType = l.leaveType.nameAr?.toLowerCase().includes(term);
         if (!matchName && !matchDept && !matchTitle && !matchLeaveType) return false;
@@ -126,7 +133,12 @@ export default function LeaveCalendarPage() {
       if (debouncedModalSearch) {
         const term = debouncedModalSearch.toLowerCase();
         const matchName = l.employee.fullName?.toLowerCase().includes(term);
-        const matchDept = l.employee.department?.name?.toLowerCase().includes(term);
+        const matchDept = formatDeptUnit({
+          departmentName: l.employee.department?.name,
+          unitName: l.employee.unit?.name,
+        })
+          .toLowerCase()
+          .includes(term);
         const matchTitle = l.employee.jobTitle?.toLowerCase().includes(term);
         const matchLeaveType = l.leaveType.nameAr?.toLowerCase().includes(term);
         if (!matchName && !matchDept && !matchTitle && !matchLeaveType) return false;
@@ -561,7 +573,9 @@ export default function LeaveCalendarPage() {
                           <p className="font-semibold text-gray-900">{l.employee.fullName}</p>
                           <p className="text-sm text-gray-600 mt-0.5">
                             {l.employee.jobTitle ?? '—'}
-                            {l.employee.department?.name ? ` • ${l.employee.department.name}` : ''}
+                            {l.employee.department?.name
+                              ? ` • ${formatDeptUnit({ departmentName: l.employee.department?.name, unitName: l.employee.unit?.name })}`
+                              : ''}
                           </p>
                           <Badge className={`mt-1.5 ${STATUS_COLORS[l.status] || 'bg-gray-100'}`}>{l.leaveType.nameAr}</Badge>
                         </div>
@@ -596,7 +610,10 @@ export default function LeaveCalendarPage() {
                     <p className="font-medium text-gray-900">{l.employee.fullName}</p>
                     <p className="text-sm text-gray-500">
                       {l.leaveType.nameAr}
-                      {l.employee.department?.name ? ` • ${l.employee.department.name}` : ''} —{' '}
+                      {l.employee.department?.name
+                        ? ` • ${formatDeptUnit({ departmentName: l.employee.department?.name, unitName: l.employee.unit?.name })}`
+                        : ''}{' '}
+                      —{' '}
                       {new Date(l.startDate).toLocaleDateString('ar-EG')} -{' '}
                       {new Date(l.endDate).toLocaleDateString('ar-EG')} ({l.daysCount} أيام)
                     </p>

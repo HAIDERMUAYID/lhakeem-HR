@@ -49,7 +49,7 @@ import { TableSkeleton } from '@/components/shared/page-skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
 import { downloadCSV } from '@/lib/export';
-import { cn } from '@/lib/utils';
+import { cn, formatDeptUnit } from '@/lib/utils';
 
 type LeaveRequest = {
   id: string;
@@ -59,7 +59,13 @@ type LeaveRequest = {
   hoursCount?: number;
   status: string;
   reason: string | null;
-  employee: { id: string; fullName: string; leaveBalance: string | number; department: { name: string } };
+  employee: {
+    id: string;
+    fullName: string;
+    leaveBalance: string | number;
+    department: { name: string };
+    unit?: { name: string } | null;
+  };
   leaveType: { id: string; nameAr: string };
 };
 
@@ -160,7 +166,7 @@ function SearchableSelect({
     <div ref={ref} className="relative">
       <div
         onClick={() => setOpen((o) => !o)}
-        className="flex h-11 w-full items-center justify-between rounded-xl border border-gray-200 bg-white px-4 text-base cursor-pointer hover:border-gray-300"
+        className="elevation-1 flex h-11 w-full items-center justify-between rounded-2xl px-4 text-base cursor-pointer hover:elevation-2 transition-all duration-200"
       >
         <span className={selected ? 'text-gray-900' : 'text-gray-400'}>
           {selected ? selected.label : placeholder ?? 'اختر...'}
@@ -168,7 +174,7 @@ function SearchableSelect({
         <Search className="h-4 w-4 text-gray-400 shrink-0" />
       </div>
       {open && (
-        <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-xl border border-gray-200 bg-white shadow-lg max-h-56 overflow-hidden">
+        <div className="absolute top-full left-0 right-0 mt-1 z-50 rounded-3xl elevation-2 max-h-56 overflow-hidden">
           <div className="p-2 border-b">
             <Input
               value={search}
@@ -195,8 +201,10 @@ function SearchableSelect({
                     setOpen(false);
                     setSearch('');
                   }}
-                  className={`w-full text-right px-4 py-2.5 hover:bg-gray-50 flex flex-col items-start ${
-                    value === opt.value ? 'bg-primary-50 text-primary-800' : ''
+                  className={`w-full text-right px-4 py-2.5 hover:bg-gray-50 transition-colors flex flex-col items-start ${
+                    value === opt.value
+                      ? 'bg-primary-50 text-primary-800 ring-1 ring-primary-500/20'
+                      : ''
                   }`}
                 >
                   <span className="font-medium">{opt.label}</span>
@@ -270,7 +278,7 @@ export default function LeavesPage() {
       params.set('limit', employeeSearchTerm ? '500' : '5000');
       params.set('includeInactive', 'true');
       if (employeeSearchTerm) params.set('search', employeeSearchTerm);
-      return apiGet<{ data: { id: string; fullName: string; leaveBalance: string | number; department: { name: string } }[] }>(
+      return apiGet<{ data: { id: string; fullName: string; leaveBalance: string | number; department: { name: string }; unit?: { name: string } | null }[] }>(
         `/api/employees?${params}`
       );
     },
@@ -390,7 +398,7 @@ export default function LeavesPage() {
       const headers = ['الموظف', 'القسم', 'نوع الإجازة', 'من', 'إلى', 'الأيام', 'الحالة'];
       const rows = list.map((r) => [
         r.employee?.fullName ?? '',
-        r.employee?.department?.name ?? '',
+        formatDeptUnit({ departmentName: r.employee?.department?.name, unitName: r.employee?.unit?.name }),
         r.leaveType?.nameAr ?? '',
         new Date(r.startDate).toLocaleDateString('ar-EG'),
         new Date(r.endDate).toLocaleDateString('ar-EG'),
@@ -510,7 +518,7 @@ export default function LeavesPage() {
   const employeeOptions = (employeesRes?.data ?? []).map((e) => ({
     value: e.id,
     label: e.fullName,
-    sub: e.department?.name,
+    sub: formatDeptUnit({ departmentName: e.department?.name, unitName: e.unit?.name }),
   }));
   const employeesMapRef = useRef<Record<string, { leaveBalance: number }>>({});
   if (employeesRes?.data) {
@@ -548,7 +556,9 @@ export default function LeavesPage() {
   const HOURS_MAX = 4;
   const selectedLeaveType = leaveTypeOptions.find((lt) => lt.value === form.leaveTypeId);
   const isTemporalLeave = selectedLeaveType?.label?.includes('زمنية') ?? false;
-  const effectiveUseHours = useHours || isTemporalLeave;
+  /** المرضية بالأيام فقط — لا توجد مرضية بالساعات */
+  const isSickLeave = selectedLeaveType?.label?.includes('مرضية') ?? false;
+  const effectiveUseHours = (useHours || isTemporalLeave) && !isSickLeave;
   const rawRequiredHours = effectiveUseHours
     ? Math.min(HOURS_MAX, Math.max(HOURS_MIN, Number(localHoursCount) || 0))
     : (Number(localDaysCount) || 0) * HOURS_PER_DAY;
@@ -667,7 +677,7 @@ export default function LeavesPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1, duration: 0.35 }}
           >
-            <Card className="border-0 overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-lg transition-shadow duration-300 ring-1 ring-gray-100">
+            <Card className="elevation-2 overflow-hidden card-hover">
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-0.5">توزيع الطلبات حسب الحالة</h3>
                 <p className="text-sm text-gray-500 mb-5">معتمدة، قيد الانتظار، مرفوضة</p>
@@ -726,7 +736,7 @@ export default function LeavesPage() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.15, duration: 0.35 }}
           >
-            <Card className="border-0 overflow-hidden rounded-2xl bg-white shadow-sm hover:shadow-lg transition-shadow duration-300 ring-1 ring-gray-100">
+            <Card className="elevation-2 overflow-hidden card-hover">
               <CardContent className="p-6">
                 <h3 className="text-lg font-semibold text-gray-900 mb-0.5">الإجازات حسب الشهر</h3>
                 <p className="text-sm text-gray-500 mb-5">آخر ٦ أشهر</p>
@@ -891,7 +901,8 @@ export default function LeavesPage() {
                   <div className="flex-1 min-w-0">
                     <p className="font-semibold text-gray-900">{req.employee.fullName}</p>
                     <p className="text-sm text-gray-500">
-                      {req.employee.department?.name} • {req.leaveType.nameAr}
+                      {formatDeptUnit({ departmentName: req.employee.department?.name, unitName: req.employee.unit?.name })}{' '}
+                      • {req.leaveType.nameAr}
                     </p>
                     <p className="text-sm text-gray-600 mt-1 flex items-center gap-1 flex-wrap">
                       <CalendarCheck className="h-4 w-4 shrink-0 text-primary-500" />
@@ -1002,7 +1013,12 @@ export default function LeavesPage() {
               <div>
                 <p className="text-xs font-medium text-gray-500 mb-1">الموظف</p>
                 <p className="font-semibold text-gray-900">{leaveDetails.employee?.fullName}</p>
-                <p className="text-sm text-gray-500">{leaveDetails.employee?.department?.name}</p>
+                <p className="text-sm text-gray-500">
+                  {formatDeptUnit({
+                    departmentName: leaveDetails.employee?.department?.name,
+                    unitName: leaveDetails.employee?.unit?.name,
+                  })}
+                </p>
               </div>
               <div>
                 <p className="text-xs font-medium text-gray-500 mb-1">نوع الإجازة</p>
@@ -1232,9 +1248,14 @@ export default function LeavesPage() {
               </>
             ) : (
               <>
-                <p className="text-xs text-gray-500">
-                  الإجازة الزمنية (بالساعات) تستخدم <strong>نفس الرصيد التراكمي</strong>. كل ٧ ساعات = يوم. عند اختيار الساعات: من ١ إلى ٤.
-                </p>
+                {isSickLeave ? (
+                  <p className="text-xs text-gray-500">الإجازة المرضية بالأيام فقط.</p>
+                ) : (
+                  <p className="text-xs text-gray-500">
+                    الإجازة الزمنية (بالساعات) تستخدم <strong>نفس الرصيد التراكمي</strong>. كل ٧ ساعات = يوم. عند اختيار الساعات: من ١ إلى ٤.
+                  </p>
+                )}
+                {!isSickLeave && (
                 <div className="flex gap-2 p-2 rounded-xl bg-slate-50/80">
                   <label className="flex items-center gap-2 cursor-pointer flex-1 justify-center py-2.5 rounded-lg transition-all border-2 border-transparent has-[:checked]:border-primary-500 has-[:checked]:bg-white has-[:checked]:shadow-sm has-[:checked]:text-primary-700 min-h-[44px]">
                     <input type="radio" checked={!useHours} onChange={() => setUseHours(false)} className="sr-only" />
@@ -1257,8 +1278,9 @@ export default function LeavesPage() {
                     <span className="text-sm font-medium">ساعات (١–٤)</span>
                   </label>
                 </div>
+                )}
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {!useHours ? (
+                  {!effectiveUseHours ? (
                     <div>
                       <label className="block text-xs font-medium text-gray-500 mb-1.5">عدد الأيام</label>
                       <Input

@@ -86,6 +86,31 @@
   }
 }
 
+@layer utilities {
+  /* Elevation system (Depth-first) */
+  .elevation-0 {
+    @apply bg-white border border-gray-100 ring-1 ring-black/[0.02] shadow-none;
+  }
+  .elevation-1 {
+    @apply bg-white border border-gray-100 ring-1 ring-black/[0.02] shadow-[0_1px_2px_rgba(16,24,40,0.04)];
+  }
+  .elevation-2 {
+    @apply bg-white border border-gray-100 ring-1 ring-black/[0.03] shadow-[0_10px_30px_rgba(16,24,40,0.10)];
+  }
+  .elevation-3 {
+    @apply bg-white border border-gray-100 ring-1 ring-black/[0.05] shadow-[0_20px_60px_rgba(16,24,40,0.16)];
+  }
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
 /* Smooth scrollbar */
 ::-webkit-scrollbar {
   width: 8px;

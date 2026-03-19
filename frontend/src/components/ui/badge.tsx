@@ -16,7 +16,8 @@ function Badge({ className, variant = 'default', ...props }: BadgeProps) {
   return (
     <div
       className={cn(
-        'inline-flex items-center rounded-lg px-2.5 py-0.5 text-xs font-medium',
+        'inline-flex items-center rounded-xl px-2.5 py-0.5 text-xs font-medium',
+        'border border-black/[0.04] shadow-[0_1px_2px_rgba(16,24,40,0.04)]',
         badgeVariants[variant],
         className
       )}

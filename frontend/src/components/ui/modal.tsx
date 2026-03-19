@@ -36,22 +36,23 @@ export function Modal({ open, onClose, title, children, className }: ModalProps)
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={onClose}
-            className="absolute inset-0 bg-black/40 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/40 backdrop-blur-[6px]"
           />
           <motion.div
-            initial={{ opacity: 0, y: 24 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 24 }}
+            initial={{ opacity: 0, y: 24, scale: 0.98 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 24, scale: 0.98 }}
             transition={{ type: 'spring', damping: 28, stiffness: 300 }}
             className={cn(
-              'relative w-full max-w-lg rounded-t-2xl sm:rounded-2xl bg-white shadow-xl ring-1 ring-black/5',
+              'relative w-full max-w-lg rounded-t-3xl sm:rounded-3xl bg-white',
+              'shadow-[0_20px_60px_rgba(16,24,40,0.24)] ring-1 ring-black/[0.06]',
               'max-h-[94vh] flex flex-col',
               'sm:max-h-[90vh]',
               className
             )}
             onClick={(e) => e.stopPropagation()}
           >
-            <div className="flex items-center justify-between border-b border-gray-100 p-4 sm:p-6 shrink-0">
+            <div className="flex items-center justify-between border-b border-gray-100/80 p-4 sm:p-6 shrink-0">
               <h2 className="text-lg sm:text-xl font-semibold text-gray-900 truncate pr-2">{title}</h2>
               <Button
                 variant="ghost"

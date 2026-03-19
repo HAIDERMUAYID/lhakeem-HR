@@ -24,13 +24,39 @@ export class LeaveTypesController {
 
   @Post()
   @RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.LEAVE_TYPES_MANAGE)
-  async create(@Body() dto: { name: string; nameAr: string; deductFromBalance?: boolean; requiresApproval?: boolean; annualAllowance?: number; monthlyAccrual?: number }) {
+  async create(
+    @Body()
+    dto: {
+      name: string;
+      nameAr: string;
+      deductFromBalance?: boolean;
+      requiresApproval?: boolean;
+      annualAllowance?: number;
+      monthlyAccrual?: number;
+      balanceStrategy?: 'CUMULATIVE_SHARED' | 'FIXED_ANNUAL_RESET' | 'NO_BALANCE';
+      balanceGroupId?: string | null;
+    },
+  ) {
     return this.leaveTypesService.create(dto);
   }
 
   @Put(':id')
   @RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.LEAVE_TYPES_MANAGE)
-  async update(@Param('id') id: string, @Body() dto: Partial<{ name: string; nameAr: string; deductFromBalance: boolean; requiresApproval: boolean; annualAllowance: number | null; monthlyAccrual: number | null; isActive: boolean }>) {
+  async update(
+    @Param('id') id: string,
+    @Body()
+    dto: Partial<{
+      name: string;
+      nameAr: string;
+      deductFromBalance: boolean;
+      requiresApproval: boolean;
+      annualAllowance: number | null;
+      monthlyAccrual: number | null;
+      isActive: boolean;
+      balanceStrategy: 'CUMULATIVE_SHARED' | 'FIXED_ANNUAL_RESET' | 'NO_BALANCE';
+      balanceGroupId: string | null;
+    }>,
+  ) {
     return this.leaveTypesService.update(id, dto);
   }
 

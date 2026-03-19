@@ -37,9 +37,10 @@ export function Select({
         onChange={(e) => onChange(e.target.value)}
         disabled={disabled}
         className={cn(
-          'flex h-11 w-full rounded-xl border bg-white px-4 text-base transition-colors',
-          'focus:outline-none focus:ring-2 focus:ring-primary-500/20 focus:border-primary-500',
-          error ? 'border-red-300' : 'border-gray-200',
+          // elevation + focus (Premium dropdown)
+          'elevation-1 flex h-11 w-full rounded-2xl px-4 text-base transition-all duration-200 hover:elevation-2',
+          'focus:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/25 focus-visible:border-primary-500',
+          error ? 'border-red-200 ring-red-500/20 focus-visible:border-red-500' : '',
           disabled && 'cursor-not-allowed opacity-60',
           className
         )}

@@ -29,6 +29,7 @@ import { TableSkeleton } from '@/components/shared/page-skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
 import { downloadCSV } from '@/lib/export';
 import { useDebounce } from '@/hooks/use-debounce';
+import { formatDeptUnit } from '@/lib/utils';
 
 const ADD_DEBOUNCE_MS = 200;
 
@@ -43,6 +44,7 @@ type Absence = {
     jobTitle?: string;
     workType: string;
     department?: { id: string; name: string };
+    unit?: { id: string; name: string } | null;
   };
 };
 
@@ -54,6 +56,7 @@ type EmployeeOption = {
   jobTitle: string;
   workType: string;
   department: { id: string; name: string };
+  unit?: { id: string; name: string } | null;
 };
 
 type AbsenceReport = {
@@ -62,7 +65,7 @@ type AbsenceReport = {
   status: string;
   submittedAt: string | null;
   createdBy?: { id: string; name: string };
-  absences: (Absence & { employee: EmployeeOption & { department?: { id: string; name: string } } })[];
+  absences: (Absence & { employee: EmployeeOption & { department?: { id: string; name: string }; unit?: { id: string; name: string } | null } })[];
 };
 
 const WORK_TYPE_LABEL: Record<string, string> = {
@@ -429,7 +432,7 @@ export default function AbsencesPage() {
                                   >
                                     <span className="font-medium">{e.fullName}</span>
                                     <span className="text-xs text-gray-500">
-                                      {e.jobTitle} — {e.department?.name}
+                                      {e.jobTitle} — {formatDeptUnit({ departmentName: e.department?.name, unitName: e.unit?.name })}
                                     </span>
                                   </button>
                                 ))}
@@ -485,7 +488,12 @@ export default function AbsencesPage() {
                                       )}
                                     </td>
                                     <td className="p-3">{a.employee?.jobTitle ?? '—'}</td>
-                                    <td className="p-3">{a.employee?.department?.name ?? '—'}</td>
+                                    <td className="p-3">
+                                      {formatDeptUnit({
+                                        departmentName: a.employee?.department?.name,
+                                        unitName: a.employee?.unit?.name,
+                                      })}
+                                    </td>
                                     <td className="p-3">{WORK_TYPE_LABEL[a.employee?.workType] ?? a.employee?.workType ?? '—'}</td>
                                     <td className="p-3">{new Date(a.date).toLocaleDateString('ar-EG')}</td>
                                     {!isLocked && (
@@ -521,7 +529,13 @@ export default function AbsencesPage() {
                               <Card key={a.id} className={`border shadow-sm ${String(a.id).startsWith('pending-') ? 'bg-blue-50/60 border-blue-100' : ''}`}>
                                 <CardContent className="p-4">
                                   <p className="font-medium text-gray-900">{a.employee?.fullName ?? '—'}</p>
-                                  <p className="text-sm text-gray-500">{a.employee?.jobTitle ?? '—'} • {a.employee?.department?.name ?? '—'}</p>
+                                  <p className="text-sm text-gray-500">
+                                    {a.employee?.jobTitle ?? '—'} •{' '}
+                                    {formatDeptUnit({
+                                      departmentName: a.employee?.department?.name,
+                                      unitName: a.employee?.unit?.name,
+                                    })}
+                                  </p>
                                   <div className="flex items-center justify-between mt-2 flex-wrap gap-2">
                                     <span className="text-xs text-gray-500">
                                       {WORK_TYPE_LABEL[a.employee?.workType] ?? a.employee?.workType ?? '—'} — {new Date(a.date).toLocaleDateString('ar-EG')}
@@ -699,7 +713,12 @@ export default function AbsencesPage() {
                             <tr key={a.id} className="border-b border-gray-100">
                               <td className="p-3 font-medium">{a.employee?.fullName}</td>
                               <td className="p-3">{a.employee?.jobTitle ?? '—'}</td>
-                              <td className="p-3">{a.employee?.department?.name ?? '—'}</td>
+                              <td className="p-3">
+                                {formatDeptUnit({
+                                  departmentName: a.employee?.department?.name,
+                                  unitName: a.employee?.unit?.name,
+                                })}
+                              </td>
                               <td className="p-3">{WORK_TYPE_LABEL[a.employee?.workType] ?? '—'}</td>
                               <td className="p-3">{new Date(a.date).toLocaleDateString('ar-EG')}</td>
                             </tr>
@@ -712,7 +731,13 @@ export default function AbsencesPage() {
                         <Card key={a.id} className="border border-gray-200 shadow-sm">
                           <CardContent className="p-4">
                             <p className="font-medium text-gray-900">{a.employee?.fullName}</p>
-                            <p className="text-sm text-gray-500">{a.employee?.jobTitle ?? '—'} • {a.employee?.department?.name ?? '—'}</p>
+                            <p className="text-sm text-gray-500">
+                              {a.employee?.jobTitle ?? '—'} •{' '}
+                              {formatDeptUnit({
+                                departmentName: a.employee?.department?.name,
+                                unitName: a.employee?.unit?.name,
+                              })}
+                            </p>
                             <p className="text-xs text-gray-500 mt-1">{WORK_TYPE_LABEL[a.employee?.workType] ?? '—'} — {new Date(a.date).toLocaleDateString('ar-EG')}</p>
                           </CardContent>
                         </Card>
@@ -738,7 +763,7 @@ export default function AbsencesPage() {
                           const rows = abs.map((a) => [
                             a.employee?.fullName ?? '',
                             a.employee?.jobTitle ?? '',
-                            a.employee?.department?.name ?? '',
+                            formatDeptUnit({ departmentName: a.employee?.department?.name, unitName: a.employee?.unit?.name }),
                             WORK_TYPE_LABEL[a.employee?.workType ?? ''] ?? a.employee?.workType ?? '',
                             new Date(a.date).toLocaleDateString('ar-EG'),
                           ]);
@@ -832,7 +857,7 @@ function LegacyAbsencesView() {
       const rows = list.map((a) => [
         a.employee?.fullName ?? '',
         a.employee?.jobTitle ?? '',
-        a.employee?.department?.name ?? '',
+        formatDeptUnit({ departmentName: a.employee?.department?.name, unitName: a.employee?.unit?.name }),
         WORK_TYPE_LABEL[a.employee?.workType] ?? a.employee?.workType ?? '',
         new Date(a.date).toLocaleDateString('ar-EG'),
         a.reason ?? '',
@@ -924,7 +949,7 @@ function LegacyAbsencesView() {
         </form>
       </Modal>
 
-      <Card className="overflow-hidden border-0 shadow-md">
+      <Card className="overflow-hidden elevation-2">
         <CardContent className="p-0">
           {isLoading ? (
             <TableSkeleton rows={5} />
@@ -956,7 +981,9 @@ function LegacyAbsencesView() {
                     </div>
                     <div>
                       <p className="font-semibold text-gray-900">{abs.employee.fullName}</p>
-                      <p className="text-sm text-gray-500">{abs.employee.department?.name}</p>
+                      <p className="text-sm text-gray-500">
+                        {formatDeptUnit({ departmentName: abs.employee.department?.name, unitName: abs.employee.unit?.name })}
+                      </p>
                       {abs.reason && <p className="text-sm text-gray-400 mt-1">{abs.reason}</p>}
                     </div>
                   </div>

@@ -123,7 +123,15 @@ export class WorkSchedulesService {
     return this.prisma.workSchedule.findMany({
       where,
       include: {
-        employee: { select: { id: true, fullName: true, department: true, workType: true } },
+        employee: {
+          select: {
+            id: true,
+            fullName: true,
+            department: true,
+            unit: { select: { id: true, name: true } },
+            workType: true,
+          },
+        },
         approvedBy: { select: { id: true, name: true } },
       },
       orderBy: [{ employee: { fullName: 'asc' } }],
@@ -307,7 +315,15 @@ export class WorkSchedulesService {
     return this.prisma.workSchedule.findMany({
       where: { year, month, employee: { departmentId } },
       include: {
-        employee: { select: { id: true, fullName: true, department: true, workType: true } },
+        employee: {
+          select: {
+            id: true,
+            fullName: true,
+            department: true,
+            unit: { select: { id: true, name: true } },
+            workType: true,
+          },
+        },
         approvedBy: { select: { id: true, name: true } },
       },
       orderBy: [{ employee: { fullName: 'asc' } }],

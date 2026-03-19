@@ -27,6 +27,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog';
 import { TableSkeleton } from '@/components/shared/page-skeleton';
 import { ResponsiveDataView } from '@/components/shared/responsive-data-view';
 import { useDebounce } from '@/hooks/use-debounce';
+import { formatDeptUnit } from '@/lib/utils';
 
 type Absence = {
   id: string;
@@ -38,6 +39,7 @@ type Absence = {
     jobTitle?: string;
     workType: string;
     department?: { id: string; name: string };
+    unit?: { id: string; name: string } | null;
   };
 };
 
@@ -156,7 +158,12 @@ export default function AbsencesDayPage() {
       if (debouncedSearch) {
         const term = debouncedSearch.toLowerCase();
         const matchName = absence.employee?.fullName?.toLowerCase().includes(term);
-        const matchDept = absence.employee?.department?.name?.toLowerCase().includes(term);
+        const matchDept = formatDeptUnit({
+          departmentName: absence.employee?.department?.name,
+          unitName: absence.employee?.unit?.name,
+        })
+          .toLowerCase()
+          .includes(term);
         const matchTitle = absence.employee?.jobTitle?.toLowerCase().includes(term);
         if (!matchName && !matchDept && !matchTitle) return false;
       }
@@ -494,7 +501,12 @@ export default function AbsencesDayPage() {
                             >
                               <td className="p-4 font-medium text-gray-900">{absence.employee?.fullName ?? '—'}</td>
                               <td className="p-4 text-gray-600">{absence.employee?.jobTitle ?? '—'}</td>
-                              <td className="p-4 text-gray-600">{absence.employee?.department?.name ?? '—'}</td>
+                              <td className="p-4 text-gray-600">
+                                {formatDeptUnit({
+                                  departmentName: absence.employee?.department?.name,
+                                  unitName: absence.employee?.unit?.name,
+                                })}
+                              </td>
                               <td className="p-4">
                                 <Badge variant="secondary">
                                   {WORK_TYPE_LABEL[absence.employee?.workType] ?? absence.employee?.workType ?? '—'}
@@ -512,7 +524,13 @@ export default function AbsencesDayPage() {
                           <Card key={absence.id} className="border border-gray-200 shadow-sm">
                             <CardContent className="p-4">
                               <p className="font-medium text-gray-900">{absence.employee?.fullName ?? '—'}</p>
-                              <p className="text-sm text-gray-500">{absence.employee?.jobTitle ?? '—'} • {absence.employee?.department?.name ?? '—'}</p>
+                              <p className="text-sm text-gray-500">
+                                {absence.employee?.jobTitle ?? '—'} •{' '}
+                                {formatDeptUnit({
+                                  departmentName: absence.employee?.department?.name,
+                                  unitName: absence.employee?.unit?.name,
+                                })}
+                              </p>
                               <div className="flex items-center gap-2 mt-2 flex-wrap">
                                 <Badge variant="secondary" className="text-xs">
                                   {WORK_TYPE_LABEL[absence.employee?.workType] ?? absence.employee?.workType ?? '—'}

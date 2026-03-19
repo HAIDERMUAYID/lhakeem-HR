@@ -20,6 +20,7 @@ import { apiGet } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { hasAnyPermission } from '@/lib/permissions';
+import { formatDeptUnit } from '@/lib/utils';
 import {
   BarChart,
   Bar,
@@ -99,7 +100,14 @@ export default function ReportsPage() {
     queryKey: ['employees-report'],
     queryFn: () =>
       apiGet<{
-        data: { id: string; fullName: string; leaveBalance: string; jobTitle?: string; department?: { name: string } }[];
+        data: {
+          id: string;
+          fullName: string;
+          leaveBalance: string;
+          jobTitle?: string;
+          department?: { name: string };
+          unit?: { name: string } | null;
+        }[];
         total: number;
       }>('/api/employees?limit=500'),
     enabled: hasAnyPermission(permissions, ['REPORTS_VIEW', 'REPORTS_EXPORT', 'EMPLOYEES_VIEW']),
@@ -112,11 +120,11 @@ export default function ReportsPage() {
     doc.text('تقرير الموظفين - مستشفى الحكيم العام', 14, 15);
     doc.text(new Date().toLocaleDateString('ar-EG'), 14, 22);
     autoTable(doc, {
-      head: [['الاسم', 'العنوان', 'القسم', 'رصيد الإجازات']],
+      head: [['الاسم', 'العنوان', 'القسم/الوحدة', 'رصيد الإجازات']],
       body: empList.map((e) => [
         e.fullName,
         e.jobTitle ?? '',
-        e.department?.name ?? '',
+        formatDeptUnit({ departmentName: e.department?.name, unitName: e.unit?.name }),
         String(e.leaveBalance),
       ]),
       startY: 28,
@@ -126,11 +134,11 @@ export default function ReportsPage() {
 
   const handleExportExcel = () => {
     const csv =
-      'الاسم,العنوان الوظيفي,القسم,رصيد الإجازات\n' +
+      'الاسم,العنوان الوظيفي,القسم/الوحدة,رصيد الإجازات\n' +
       empList
         .map(
           (e) =>
-            `"${e.fullName}","${e.jobTitle ?? ''}","${e.department?.name ?? ''}","${e.leaveBalance}"`,
+            `"${e.fullName}","${e.jobTitle ?? ''}","${formatDeptUnit({ departmentName: e.department?.name, unitName: e.unit?.name })}","${e.leaveBalance}"`,
         )
         .join('\n');
     const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
@@ -141,7 +149,7 @@ export default function ReportsPage() {
   };
 
   const deptCounts = empList.reduce((acc: Record<string, number>, emp) => {
-    const d = emp.department?.name || 'بدون قسم';
+    const d = formatDeptUnit({ departmentName: emp.department?.name, unitName: emp.unit?.name }) || 'بدون قسم';
     acc[d] = (acc[d] || 0) + 1;
     return acc;
   }, {});

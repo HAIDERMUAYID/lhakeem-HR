@@ -8,7 +8,8 @@ const Card = React.forwardRef<
   <div
     ref={ref}
     className={cn(
-      'rounded-xl border border-gray-200 bg-white shadow-sm',
+      // طبقات/عمق هادئ (Premium) — افتراضي خفيف، والصفحات يمكنها زيادة shadow عبر className
+      'rounded-2xl border border-gray-100 bg-white shadow-[0_1px_2px_rgba(16,24,40,0.04)] ring-1 ring-black/[0.02]',
       className
     )}
     {...props}

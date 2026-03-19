@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkType } from '@prisma/client';
 import { Prisma } from '@prisma/client';
@@ -118,6 +118,7 @@ export class EmployeesService {
         take,
         include: {
           department: { select: { id: true, name: true, code: true } },
+          unit: { select: { id: true, name: true } },
           manager: { select: { fullName: true } },
           managerUser: { select: { id: true, name: true } },
           fingerprints: {
@@ -134,6 +135,56 @@ export class EmployeesService {
     ]);
 
     return { data: employees, total };
+  }
+
+  async moveEmployees(params: {
+    employeeIds: string[];
+    targetDepartmentId: string;
+    targetUnitId?: string | null;
+  }) {
+    const employeeIds = (params.employeeIds ?? []).map((s) => (s || '').trim()).filter(Boolean);
+    if (employeeIds.length === 0) {
+      throw new BadRequestException('employeeIds مطلوبة');
+    }
+    const targetDepartmentId = (params.targetDepartmentId || '').trim();
+    if (!targetDepartmentId) {
+      throw new BadRequestException('targetDepartmentId مطلوب');
+    }
+    const targetUnitId = params.targetUnitId != null ? String(params.targetUnitId).trim() : null;
+
+    const dept = await this.prisma.department.findUnique({
+      where: { id: targetDepartmentId },
+      select: { id: true },
+    });
+    if (!dept) {
+      throw new NotFoundException('القسم الهدف غير موجود');
+    }
+
+    if (targetUnitId) {
+      const unit = await this.prisma.unit.findUnique({
+        where: { id: targetUnitId },
+        select: { id: true, departmentId: true, isActive: true },
+      });
+      if (!unit || unit.isActive === false) {
+        throw new NotFoundException('الوحدة الهدف غير موجودة أو غير نشطة');
+      }
+      if (unit.departmentId !== targetDepartmentId) {
+        throw new BadRequestException('الوحدة لا تتبع القسم الهدف');
+      }
+    }
+
+    const result = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.employee.updateMany({
+        where: { id: { in: employeeIds } },
+        data: {
+          departmentId: targetDepartmentId,
+          unitId: targetUnitId,
+        },
+      });
+      return { updatedCount: updated.count };
+    });
+
+    return { ok: true, ...result };
   }
 
   async findOne(id: string) {

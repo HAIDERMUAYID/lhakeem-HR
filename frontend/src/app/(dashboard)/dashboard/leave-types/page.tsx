@@ -20,6 +20,8 @@ type LeaveType = {
   requiresApproval: boolean;
   annualAllowance: number | null;
   monthlyAccrual: number | string | null;
+  balanceStrategy?: 'CUMULATIVE_SHARED' | 'FIXED_ANNUAL_RESET' | 'NO_BALANCE';
+  balanceGroupId?: string | null;
 };
 
 export default function LeaveTypesPage() {
@@ -34,6 +36,8 @@ export default function LeaveTypesPage() {
     requiresApproval: true,
     annualAllowance: '' as string | number,
     monthlyAccrual: '' as string | number,
+    balanceStrategy: 'CUMULATIVE_SHARED' as 'CUMULATIVE_SHARED' | 'FIXED_ANNUAL_RESET' | 'NO_BALANCE',
+    balanceGroupId: '' as string | null,
   });
   /** قيم محلية للحقول الرقمية — لكتابة سلسة على الجوال */
   const [localAnnualAllowance, setLocalAnnualAllowance] = useState('');
@@ -73,11 +77,22 @@ export default function LeaveTypesPage() {
         requiresApproval: body.requiresApproval,
         annualAllowance: body.annualAllowance ? Number(body.annualAllowance) : undefined,
         monthlyAccrual: body.monthlyAccrual ? Number(body.monthlyAccrual) : undefined,
+        balanceStrategy: body.balanceStrategy,
+        balanceGroupId: body.balanceGroupId || null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-types-all'] });
       setAddOpen(false);
-      setForm({ name: '', nameAr: '', deductFromBalance: true, requiresApproval: true, annualAllowance: '', monthlyAccrual: '' });
+      setForm({
+        name: '',
+        nameAr: '',
+        deductFromBalance: true,
+        requiresApproval: true,
+        annualAllowance: '',
+        monthlyAccrual: '',
+        balanceStrategy: 'CUMULATIVE_SHARED',
+        balanceGroupId: '',
+      });
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -91,6 +106,8 @@ export default function LeaveTypesPage() {
         requiresApproval: body.requiresApproval,
         annualAllowance: body.annualAllowance ? Number(body.annualAllowance) : null,
         monthlyAccrual: body.monthlyAccrual ? Number(body.monthlyAccrual) : null,
+        balanceStrategy: body.balanceStrategy,
+        balanceGroupId: body.balanceGroupId ?? null,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leave-types-all'] });
@@ -123,6 +140,8 @@ export default function LeaveTypesPage() {
       requiresApproval: t.requiresApproval,
       annualAllowance: t.annualAllowance ?? '',
       monthlyAccrual: t.monthlyAccrual ?? '',
+      balanceStrategy: t.balanceStrategy ?? 'CUMULATIVE_SHARED',
+      balanceGroupId: t.balanceGroupId ?? '',
     });
     setEditOpen(true);
   };
@@ -176,7 +195,7 @@ export default function LeaveTypesPage() {
               <span className="text-sm">يتطلب موافقة</span>
             </label>
           </div>
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">الرصيد السنوي</label>
               <Input
@@ -211,7 +230,43 @@ export default function LeaveTypesPage() {
                 placeholder="—"
               />
             </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">طريقة التعامل مع الرصيد</label>
+              <select
+                value={form.balanceStrategy}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, balanceStrategy: e.target.value as typeof form.balanceStrategy }))
+                }
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+              >
+                <option value="CUMULATIVE_SHARED">رصيد تراكمي مشترك</option>
+                <option value="FIXED_ANNUAL_RESET">رصيد سنوي ثابت (يعاد كل سنة)</option>
+                <option value="NO_BALANCE">بدون رصيد</option>
+              </select>
+              {form.balanceStrategy === 'CUMULATIVE_SHARED' && (
+                <p className="text-xs text-gray-500 mt-1">تشارك هذا النوع نفس الرصيد مع الأنواع ذات نفس مجموعة الرصيد.</p>
+              )}
+              {form.balanceStrategy === 'FIXED_ANNUAL_RESET' && (
+                <p className="text-xs text-gray-500 mt-1">كل سنة يُحتسب رصيد جديد حسب الرصيد السنوي، دون ترحيل المتبقي.</p>
+              )}
+              {form.balanceStrategy === 'NO_BALANCE' && (
+                <p className="text-xs text-gray-500 mt-1">هذا النوع لا يخصم من أي رصيد، بغض النظر عن القيمة المتبقية.</p>
+              )}
+            </div>
           </div>
+          {form.balanceStrategy === 'CUMULATIVE_SHARED' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">معرف مجموعة الرصيد (اختياري)</label>
+              <Input
+                value={form.balanceGroupId ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, balanceGroupId: e.target.value }))}
+                placeholder="مثال: ANNUAL_POOL"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                الأنواع التي تملك نفس معرف المجموعة ستستخدم رصيداً تراكمياً مشتركاً (اعتيادية + زمنية مثلاً).
+              </p>
+            </div>
+          )}
           <div className="flex gap-2 pt-4">
             <Button type="submit" disabled={addMutation.isPending}>{addMutation.isPending ? 'جاري الحفظ...' : 'حفظ'}</Button>
             <Button type="button" variant="secondary" onClick={() => setAddOpen(false)}>إلغاء</Button>
@@ -249,7 +304,7 @@ export default function LeaveTypesPage() {
                 <span className="text-sm">يتطلب موافقة</span>
               </label>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">الرصيد السنوي</label>
                 <Input
@@ -284,7 +339,31 @@ export default function LeaveTypesPage() {
                   placeholder="—"
                 />
               </div>
+            <div className="sm:col-span-2">
+              <label className="block text-sm font-medium text-gray-700 mb-1">طريقة التعامل مع الرصيد</label>
+              <select
+                value={form.balanceStrategy}
+                onChange={(e) =>
+                  setForm((f) => ({ ...f, balanceStrategy: e.target.value as typeof form.balanceStrategy }))
+                }
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+              >
+                <option value="CUMULATIVE_SHARED">رصيد تراكمي مشترك</option>
+                <option value="FIXED_ANNUAL_RESET">رصيد سنوي ثابت (يعاد كل سنة)</option>
+                <option value="NO_BALANCE">بدون رصيد</option>
+              </select>
             </div>
+            </div>
+          {form.balanceStrategy === 'CUMULATIVE_SHARED' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">معرف مجموعة الرصيد (اختياري)</label>
+              <Input
+                value={form.balanceGroupId ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, balanceGroupId: e.target.value }))}
+                placeholder="مثال: ANNUAL_POOL"
+              />
+            </div>
+          )}
             <div className="flex gap-2 pt-4">
               <Button type="submit" disabled={updateMutation.isPending}>{updateMutation.isPending ? 'جاري الحفظ...' : 'حفظ'}</Button>
               <Button type="button" variant="secondary" onClick={() => setEditOpen(false)}>إلغاء</Button>

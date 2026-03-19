@@ -27,8 +27,8 @@ export function ErrorState({
       role="alert"
       aria-live="assertive"
     >
-      <div className="h-20 w-20 rounded-2xl bg-red-50 flex items-center justify-center mb-5">
-        <Icon className="h-10 w-10 text-red-500" />
+      <div className="h-20 w-20 rounded-3xl bg-red-50 elevation-2 flex items-center justify-center mb-5">
+        <Icon className="h-10 w-10 text-red-600" />
       </div>
       <p className="text-gray-900 font-semibold">{title}</p>
       {message && <p className="text-sm text-gray-500 mt-1 max-w-sm">{message}</p>}

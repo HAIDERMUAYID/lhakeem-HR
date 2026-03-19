@@ -35,6 +35,7 @@ model User {
   auditLogs             AuditLog[]
   managedEmployees      Employee[]                 @relation("EmployeeManagerUser")
   managedDepartments    Department[]               @relation("DepartmentManager")
+  managedUnits          Unit[]                     @relation("UnitManager")
   fingerprintDepartments UserDepartmentAssignment[]
   absenceReportsCreated AbsenceReport[]
   consolidationsApproved DailyConsolidation[]
@@ -77,6 +78,7 @@ model Employee {
   fullName        String       @map("full_name")
   jobTitle        String       @map("job_title")
   departmentId    String       @map("department_id")
+  unitId          String?      @map("unit_id")
   managerId       String?      @map("manager_id")
   managerUserId   String?      @map("manager_user_id")
   importBatchId   String?      @map("import_batch_id")
@@ -88,6 +90,7 @@ model Employee {
   updatedAt       DateTime     @updatedAt @map("updated_at")
 
   department     Department    @relation(fields: [departmentId], references: [id])
+  unit           Unit?         @relation(fields: [unitId], references: [id], onDelete: SetNull)
   manager        Employee?     @relation("EmployeeManager", fields: [managerId], references: [id])
   subordinates   Employee[]    @relation("EmployeeManager")
   managerUser    User?         @relation("EmployeeManagerUser", fields: [managerUserId], references: [id], onDelete: SetNull)
@@ -100,6 +103,7 @@ model Employee {
 
   @@index([fullName])
   @@index([departmentId, isActive])
+  @@index([unitId])
   @@map("employees")
 }
 
@@ -135,11 +139,33 @@ model Department {
   updatedAt     DateTime @updatedAt @map("updated_at")
 
   employees    Employee[]
+  units        Unit[]
   users        User[]
   managerUser  User?     @relation("DepartmentManager", fields: [managerUserId], references: [id], onDelete: SetNull)
   fingerprintAssignments UserDepartmentAssignment[]
 
   @@map("departments")
+}
+
+model Unit {
+  id            String   @id @default(cuid())
+  departmentId  String   @map("department_id")
+  name          String
+  code          String?
+  description   String?
+  managerUserId String?  @map("manager_user_id")
+  sortOrder     Int      @default(0) @map("sort_order")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  department   Department @relation(fields: [departmentId], references: [id], onDelete: Cascade)
+  managerUser  User?      @relation("UnitManager", fields: [managerUserId], references: [id], onDelete: SetNull)
+  employees    Employee[]
+
+  @@index([departmentId, isActive, sortOrder])
+  @@unique([departmentId, name])
+  @@map("units")
 }
 
 // ===========================================
@@ -154,6 +180,10 @@ model LeaveType {
   requiresApproval Boolean @default(true) @map("requires_approval")
   annualAllowance  Int?    @map("annual_allowance")
   monthlyAccrual   Decimal? @map("monthly_accrual")
+  // إستراتيجية التعامل مع الرصيد لهذا النوع
+  balanceStrategy  LeaveBalanceStrategy @default(CUMULATIVE_SHARED) @map("balance_strategy")
+  // معرّف مجموعة الرصيد التراكمي المشترك (لربط أنواع متعددة بنفس الرصيد)
+  balanceGroupId   String?              @map("balance_group_id")
   isActive        Boolean  @default(true) @map("is_active")
   createdAt       DateTime @default(now()) @map("created_at")
   updatedAt       DateTime @updatedAt @map("updated_at")
@@ -208,6 +238,16 @@ enum LeaveStatus {
   PENDING
   APPROVED
   REJECTED
+}
+
+// كيفية التعامل مع رصيد هذا النوع من الإجازة
+enum LeaveBalanceStrategy {
+  // رصيد تراكمي مشترك (مثل الاعتيادية + الزمنية)
+  CUMULATIVE_SHARED
+  // رصيد سنوي ثابت يُعاد احتسابه كل سنة (مثل المرضية)
+  FIXED_ANNUAL_RESET
+  // لا يخصم من أي رصيد
+  NO_BALANCE
 }
 
 // ===========================================

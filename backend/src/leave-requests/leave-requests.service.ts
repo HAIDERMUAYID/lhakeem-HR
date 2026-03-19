@@ -57,8 +57,43 @@ export class LeaveRequestsService {
   }
 
   /**
-   * حساب الرصيد التراكمي لإجازة معينة حتى تاريخ محدد.
-   * يعتمد على baseline + الاستحقاق الشهري + الاستهلاك من طلبات الإجازة المعتمدة.
+   * في حالة الرصيد التراكمي المشترك: الأنواع التي تشترك بنفس الرصيد.
+   * - إذا وُجد balanceGroupId: كل الأنواع التي لها نفس balanceGroupId.
+   * - إذا لم يوجد: كل الأنواع CUMULATIVE_SHARED (اعتيادية + زمنية وغيرها تشترك تلقائياً).
+   */
+  private async getCumulativeScopeLeaveTypeIds(leaveTypeId: string): Promise<string[]> {
+    const lt = await this.prisma.leaveType.findUnique({
+      where: { id: leaveTypeId },
+      select: { balanceStrategy: true, balanceGroupId: true },
+    });
+    if (!lt) return [leaveTypeId];
+    if (lt.balanceStrategy !== 'CUMULATIVE_SHARED') return [leaveTypeId];
+
+    const groupId = lt.balanceGroupId?.trim();
+    const rows = await this.prisma.leaveType.findMany({
+      where: {
+        balanceStrategy: 'CUMULATIVE_SHARED',
+        isActive: true,
+        ...(groupId ? { balanceGroupId: groupId } : {}),
+      },
+      select: { id: true },
+    });
+    const ids = rows.map((r) => r.id);
+    return ids.length ? ids : [leaveTypeId];
+  }
+
+  private async getLatestBaselineInScope(employeeId: string, leaveTypeIds: string[]) {
+    return this.prisma.leaveBalanceBaseline.findFirst({
+      where: { employeeId, leaveTypeId: { in: leaveTypeIds } },
+      orderBy: { baselineDate: 'desc' },
+    });
+  }
+
+  /**
+   * حساب الرصيد التراكمي (أو الرصيد السنوي) لإجازة معينة حتى تاريخ محدد.
+   * - CUMULATIVE_SHARED: baseline + استحقاق شهري - استهلاك.
+   * - FIXED_ANNUAL_RESET: رصيد سنوي ثابت - استهلاك نفس السنة (مثل المرضية).
+   * - NO_BALANCE: لا رصيد.
    */
   async calculateCumulativeBalance(params: {
     employeeId: string;
@@ -75,31 +110,83 @@ export class LeaveRequestsService {
     const { employeeId, leaveTypeId, asOfDate } = params;
     const asOf = asOfDate ?? new Date();
 
-    const [baseline, leaveType] = await Promise.all([
-      this.getLatestBaseline(employeeId, leaveTypeId),
-      this.prisma.leaveType.findUnique({
-        where: { id: leaveTypeId },
-        select: { monthlyAccrual: true },
-      }),
-    ]);
+    const leaveType = await this.prisma.leaveType.findUnique({
+      where: { id: leaveTypeId },
+      select: { balanceStrategy: true, balanceGroupId: true, monthlyAccrual: true, annualAllowance: true },
+    });
 
     const monthlyAccrual =
       leaveType?.monthlyAccrual != null ? Number(leaveType.monthlyAccrual) : DEFAULT_MONTHLY_ACCRUAL;
 
-    if (!baseline) {
+    // بدون رصيد (مثل بعد الوضع)
+    if (leaveType?.balanceStrategy === 'NO_BALANCE') {
       return {
         baselineBalance: 0,
         baselineDate: null,
         accruedAfterBaseline: 0,
         consumedAfterBaseline: 0,
         currentBalance: 0,
+        monthlyAccrual: 0,
+      };
+    }
+
+    // رصيد سنوي ثابت (مرضية وغيرها): المسموح لهذه السنة - المستهلك في نفس السنة
+    if (leaveType?.balanceStrategy === 'FIXED_ANNUAL_RESET') {
+      const year = asOf.getFullYear();
+      const startOfYear = new Date(year, 0, 1);
+      const endOfYear = new Date(year, 11, 31, 23, 59, 59);
+      const approvedLeaves = await this.prisma.leaveRequest.findMany({
+        where: {
+          employeeId,
+          leaveTypeId,
+          status: LeaveStatus.APPROVED,
+          startDate: { gte: startOfYear, lte: endOfYear },
+        },
+        select: { daysCount: true, hoursCount: true },
+      });
+      let consumed = 0;
+      for (const lv of approvedLeaves) {
+        const hours = lv.hoursCount != null ? Number(lv.hoursCount) : null;
+        if (hours != null && hours > 0) {
+          consumed += hours / HOURS_PER_DAY;
+        } else {
+          consumed += lv.daysCount ?? 0;
+        }
+      }
+      const allowance = leaveType.annualAllowance ?? 30;
+      const currentBalance = allowance - consumed;
+      return {
+        baselineBalance: 0,
+        baselineDate: null,
+        accruedAfterBaseline: 0,
+        consumedAfterBaseline: consumed,
+        currentBalance,
+        monthlyAccrual: 0,
+      };
+    }
+
+    // CUMULATIVE_SHARED (الافتراضي): يعتمد على baseline
+    const scopeLeaveTypeIds = await this.getCumulativeScopeLeaveTypeIds(leaveTypeId);
+    const baseline = await this.getLatestBaselineInScope(employeeId, scopeLeaveTypeIds);
+    if (!baseline) {
+      // عند عدم وجود baseline: استخدام رصيد الموظف المخزن (employee.leaveBalance) لعرض متسق مع البطاقة
+      const emp = await this.prisma.employee.findUnique({
+        where: { id: employeeId },
+        select: { leaveBalance: true },
+      });
+      const fallbackBalance = emp?.leaveBalance != null ? Number(emp.leaveBalance) : 0;
+      return {
+        baselineBalance: 0,
+        baselineDate: null,
+        accruedAfterBaseline: 0,
+        consumedAfterBaseline: 0,
+        currentBalance: fallbackBalance,
         monthlyAccrual,
       };
     }
 
     const baselineDate = baseline.baselineDate;
 
-    // حساب الفرق بالأشهر (تقريباً) بين baseline و asOf
     const start = new Date(baselineDate);
     const end = new Date(asOf);
     const yearsDiff = end.getFullYear() - start.getFullYear();
@@ -109,11 +196,10 @@ export class LeaveRequestsService {
 
     const accruedAfterBaseline = monthsDiff * monthlyAccrual;
 
-    // الاستهلاك بعد baseline من طلبات الإجازة المعتمدة لهذا النوع
     const approvedLeaves = await this.prisma.leaveRequest.findMany({
       where: {
         employeeId,
-        leaveTypeId,
+        leaveTypeId: { in: scopeLeaveTypeIds },
         status: LeaveStatus.APPROVED,
         startDate: {
           gte: baselineDate,
@@ -376,7 +462,16 @@ export class LeaveRequestsService {
     const req = await this.prisma.leaveRequest.findUnique({
       where: { id },
       include: {
-        employee: { select: { id: true, fullName: true, jobTitle: true, department: true, leaveBalance: true } },
+        employee: {
+          select: {
+            id: true,
+            fullName: true,
+            jobTitle: true,
+            department: true,
+            unit: { select: { id: true, name: true } },
+            leaveBalance: true,
+          },
+        },
         leaveType: { select: { id: true, nameAr: true, deductFromBalance: true } },
       },
     });
@@ -399,6 +494,7 @@ export class LeaveRequestsService {
             jobTitle: true,
             departmentId: true,
             department: { select: { id: true, name: true } },
+            unit: { select: { id: true, name: true } },
           },
         },
         leaveType: { select: { id: true, nameAr: true } },
@@ -436,6 +532,7 @@ export class LeaveRequestsService {
           OR: [
             { employee: { fullName: { contains: s, mode: 'insensitive' } } },
             { employee: { department: { name: { contains: s, mode: 'insensitive' } } } },
+            { employee: { unit: { name: { contains: s, mode: 'insensitive' } } } },
             { leaveType: { nameAr: { contains: s, mode: 'insensitive' } } },
             { leaveType: { name: { contains: s, mode: 'insensitive' } } },
           ],
@@ -449,7 +546,15 @@ export class LeaveRequestsService {
         skip: params?.skip ?? 0,
         take: params?.take ?? 20,
         include: {
-          employee: { select: { id: true, fullName: true, department: true, leaveBalance: true } },
+          employee: {
+            select: {
+              id: true,
+              fullName: true,
+              department: true,
+              unit: { select: { id: true, name: true } },
+              leaveBalance: true,
+            },
+          },
           leaveType: { select: { id: true, nameAr: true } },
         },
         orderBy: { createdAt: 'desc' },
@@ -508,7 +613,10 @@ export class LeaveRequestsService {
     if (!leaveType) {
       throw new BadRequestException('نوع الإجازة غير موجود');
     }
-    const hoursPerDay = getHoursFromSchedule(schedule);
+    const isTemporalLeaveType =
+      /زمن/i.test(leaveType.nameAr || '') || /temporal|hour/i.test(leaveType.name || '');
+    // الإجازة الزمنية: كل 7 ساعات = يوم (ثابت)، بغض النظر عن جدول الدوام
+    const hoursPerDay = isTemporalLeaveType ? HOURS_PER_DAY : getHoursFromSchedule(schedule);
     const skipHolidays = employee.workType === 'MORNING';
 
     if (hoursCount != null && hoursCount > 0 && startTime?.trim()) {
@@ -766,6 +874,7 @@ export class LeaveRequestsService {
           OR: [
             { employee: { fullName: { contains: s, mode: 'insensitive' } } },
             { employee: { department: { name: { contains: s, mode: 'insensitive' } } } },
+            { employee: { unit: { name: { contains: s, mode: 'insensitive' } } } },
             { leaveType: { nameAr: { contains: s, mode: 'insensitive' } } },
           ],
         },
@@ -781,6 +890,7 @@ export class LeaveRequestsService {
             jobTitle: true,
             workType: true,
             department: { select: { id: true, name: true } },
+            unit: { select: { id: true, name: true } },
           },
         },
         leaveType: { select: { id: true, nameAr: true } },
@@ -826,11 +936,12 @@ export class LeaveRequestsService {
 
     const tableRows = rows.map((r) => {
       const hourlyType = isHourlyLeaveType(r.leaveType.nameAr);
+      const unitName = r.employee.unit?.name ? ` / ${r.employee.unit.name}` : '';
       return {
         id: r.id,
         fullName: r.employee.fullName,
         jobTitle: r.employee.jobTitle,
-        departmentName: r.employee.department.name,
+        departmentName: `${r.employee.department.name}${unitName}`,
         workType: r.employee.workType,
         leaveTypeName: r.leaveType.nameAr,
         startDate: r.startDate,

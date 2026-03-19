@@ -97,6 +97,7 @@ export class AbsenceReportsService {
                 jobTitle: true,
                 workType: true,
                 department: { select: { id: true, name: true } },
+                unit: { select: { id: true, name: true } },
               },
             },
           },
@@ -127,6 +128,7 @@ export class AbsenceReportsService {
                   jobTitle: true,
                   workType: true,
                   department: { select: { id: true, name: true } },
+                  unit: { select: { id: true, name: true } },
                 },
               },
             },
@@ -147,6 +149,7 @@ export class AbsenceReportsService {
                   jobTitle: true,
                   workType: true,
                   department: { select: { id: true, name: true } },
+                  unit: { select: { id: true, name: true } },
                 },
               },
             },
@@ -624,7 +627,9 @@ export class AbsenceReportsService {
 
     const byDeptName = new Map<string, number>();
     absences.forEach((a: AbsenceWithEmp) => {
-      const name = a.employee?.department?.name ?? '—';
+      const dept = a.employee?.department?.name ?? '—';
+      const unit = a.employee?.unit?.name ? ` / ${a.employee.unit.name}` : '';
+      const name = `${dept}${unit}`;
       byDeptName.set(name, (byDeptName.get(name) ?? 0) + 1);
     });
     let topDepartment = '—';
@@ -640,7 +645,7 @@ export class AbsenceReportsService {
       id: a.id,
       fullName: a.employee?.fullName ?? '—',
       jobTitle: a.employee?.jobTitle ?? '—',
-      departmentName: a.employee?.department?.name ?? '—',
+      departmentName: `${a.employee?.department?.name ?? '—'}${a.employee?.unit?.name ? ` / ${a.employee.unit.name}` : ''}`,
       workType: a.employee?.workType ?? 'MORNING',
       date: a.date,
       reason: a.reason ?? null,

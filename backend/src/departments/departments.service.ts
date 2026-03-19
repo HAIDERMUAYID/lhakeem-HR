@@ -39,9 +39,20 @@ export class DepartmentsService {
       where: { id },
       include: {
         managerUser: { select: { id: true, name: true, email: true } },
+        units: {
+          where: { isActive: true },
+          orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
+          include: {
+            _count: { select: { employees: true } },
+            managerUser: { select: { id: true, name: true, email: true } },
+          },
+        },
         employees: {
           where: { isActive: true },
-          include: { department: { select: { id: true, name: true } } },
+          include: {
+            department: { select: { id: true, name: true } },
+            unit: { select: { id: true, name: true } },
+          },
         },
       },
     });

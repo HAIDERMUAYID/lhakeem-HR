@@ -13,6 +13,7 @@ import { Modal } from '@/components/ui/modal';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
 import { useDebounce } from '@/hooks/use-debounce';
+import { formatDeptUnit } from '@/lib/utils';
 
 type Schedule = {
   id: string;
@@ -30,10 +31,10 @@ type Schedule = {
   approvedById?: string | null;
   approvedAt?: string | null;
   approvedBy?: { id: string; name: string } | null;
-  employee: { id: string; fullName: string; department: { id: string; name: string }; workType: string };
+  employee: { id: string; fullName: string; department: { id: string; name: string }; unit?: { id: string; name: string } | null; workType: string };
 };
 
-type EmployeeOption = { id: string; fullName: string; department?: { id: string; name: string } };
+type EmployeeOption = { id: string; fullName: string; department?: { id: string; name: string }; unit?: { id: string; name: string } | null };
 
 const DAYS = ['السبت', 'الأحد', 'الاثنين', 'الثلاثاء', 'الأربعاء', 'الخميس', 'الجمعة'];
 const MONTHS_AR = [
@@ -299,7 +300,7 @@ export default function SchedulesPage() {
     const map = new Map<string, { name: string; schedules: Schedule[] }>();
     for (const s of listForView) {
       const id = s.employee.department?.id ?? '_no_dept';
-      const name = s.employee.department?.name ?? 'بدون قسم';
+      const name = formatDeptUnit({ departmentName: s.employee.department?.name, unitName: s.employee.unit?.name });
       if (!map.has(id)) map.set(id, { name, schedules: [] });
       map.get(id)!.schedules.push(s);
     }
@@ -326,7 +327,7 @@ export default function SchedulesPage() {
       ? employees.filter(
           (e) =>
             e.fullName.toLowerCase().includes(employeeSearch.toLowerCase()) ||
-            (e.department?.name?.toLowerCase().includes(employeeSearch.toLowerCase()))
+            (formatDeptUnit({ departmentName: e.department?.name, unitName: e.unit?.name }).toLowerCase().includes(employeeSearch.toLowerCase()))
         )
       : employees;
 
@@ -724,9 +725,9 @@ export default function SchedulesPage() {
                         onChange={() => toggleEmployee(e.id)}
                       />
                       <span className="font-medium">{e.fullName}</span>
-                      {e.department?.name && (
-                        <span className="text-xs text-gray-500">— {e.department.name}</span>
-                      )}
+                      <span className="text-xs text-gray-500">
+                        — {formatDeptUnit({ departmentName: e.department?.name, unitName: e.unit?.name })}
+                      </span>
                     </label>
                   ))
                 )}

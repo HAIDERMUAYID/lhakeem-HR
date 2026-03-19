@@ -28,6 +28,10 @@ import { motion } from 'framer-motion';
 import { EmptyState } from '@/components/shared/empty-state';
 import { CanDo } from '@/components/shared/can-do';
 import { useHasPermission } from '@/hooks/use-permissions';
+import { useRouter } from 'next/navigation';
+import { MoveEmployeesModal } from '@/components/departments/move-employees-modal';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { formatDeptUnit } from '@/lib/utils';
 
 type Department = {
   id: string;
@@ -45,7 +49,17 @@ type DepartmentDetail = Department & {
     jobTitle: string;
     isActive: boolean;
     department: { id: string; name: string };
+    unit?: { id: string; name: string } | null;
   }[];
+};
+
+type EmployeeSearchRow = {
+  id: string;
+  fullName: string;
+  jobTitle: string;
+  isActive: boolean;
+  department?: { id: string; name: string } | null;
+  unit?: { id: string; name: string } | null;
 };
 
 type StatsResponse = {
@@ -64,6 +78,7 @@ const KPI_CARDS = [
 ];
 
 export default function DepartmentsPage() {
+  const router = useRouter();
   const [search, setSearch] = useState('');
   const debouncedSearch = useDebounce(search, 400);
   const [showInactive, setShowInactive] = useState(false);
@@ -91,6 +106,11 @@ export default function DepartmentsPage() {
   } | null>(null);
   const [moveTargetDeptId, setMoveTargetDeptId] = useState('');
   const [employeesModalSearch, setEmployeesModalSearch] = useState('');
+  const [employeeSearchOpen, setEmployeeSearchOpen] = useState(false);
+  const [employeeSearchTerm, setEmployeeSearchTerm] = useState('');
+  const debouncedEmployeeSearch = useDebounce(employeeSearchTerm, 350);
+  const [selectedEmployeesForOrgMove, setSelectedEmployeesForOrgMove] = useState<Record<string, true>>({});
+  const [orgMoveOpen, setOrgMoveOpen] = useState(false);
   const queryClient = useQueryClient();
 
   const canManageDepts = useHasPermission('DEPARTMENTS_MANAGE');
@@ -122,10 +142,19 @@ export default function DepartmentsPage() {
   const { data: employeesForMoveData } = useQuery({
     queryKey: ['employees-list', addToDeptSearch],
     queryFn: () =>
-      apiGet<{ data: { id: string; fullName: string; jobTitle: string; department?: { id: string; name: string } }[]; total: number }>(
+      apiGet<{ data: { id: string; fullName: string; jobTitle: string; department?: { id: string; name: string }; unit?: { id: string; name: string } | null }[]; total: number }>(
         `/api/employees?limit=100&${addToDeptSearch ? `search=${encodeURIComponent(addToDeptSearch)}` : ''}`
       ),
     enabled: addToDeptOpen,
+  });
+
+  const { data: employeesSearchData, isLoading: employeesSearchLoading } = useQuery({
+    queryKey: ['employees-search', debouncedEmployeeSearch, employeeSearchOpen],
+    queryFn: () =>
+      apiGet<{ data: EmployeeSearchRow[]; total: number }>(
+        `/api/employees?limit=200&includeInactive=true&${debouncedEmployeeSearch ? `search=${encodeURIComponent(debouncedEmployeeSearch)}` : ''}`,
+      ),
+    enabled: employeeSearchOpen,
   });
 
   const addMutation = useMutation({
@@ -176,6 +205,18 @@ export default function DepartmentsPage() {
   const statsData = stats ?? { total: 0, active: 0, inactive: 0, withManager: 0, totalEmployees: 0 };
   const userOptions = (Array.isArray(users) ? users : []).map((u) => ({ value: u.id, label: u.name }));
 
+  const employeeSearchRows = employeesSearchData?.data ?? [];
+  const selectedOrgIds = useMemo(() => Object.keys(selectedEmployeesForOrgMove), [selectedEmployeesForOrgMove]);
+  const toggleAllEmployeeSearch = (checked: boolean) => {
+    if (!checked) {
+      setSelectedEmployeesForOrgMove({});
+      return;
+    }
+    const next: Record<string, true> = {};
+    for (const e of employeeSearchRows) next[e.id] = true;
+    setSelectedEmployeesForOrgMove(next);
+  };
+
   const filteredDeptEmployees = useMemo(() => {
     const employees = deptDetail?.employees ?? [];
     const q = employeesModalSearch.trim().toLowerCase();
@@ -216,12 +257,26 @@ export default function DepartmentsPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">الأقسام</h1>
           <p className="text-gray-500 mt-1">إدارة أقسام المستشفى والوحدات والمسؤولين</p>
         </div>
-        <CanDo permission="DEPARTMENTS_MANAGE">
-          <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md">
-            <Plus className="h-5 w-5" />
-            إضافة قسم
+        <div className="flex flex-col sm:flex-row gap-2">
+          <Button
+            variant="outline"
+            className="gap-2"
+            onClick={() => {
+              setEmployeeSearchOpen(true);
+              setSelectedEmployeesForOrgMove({});
+              setEmployeeSearchTerm('');
+            }}
+          >
+            <Search className="h-5 w-5" />
+            بحث موظف
           </Button>
-        </CanDo>
+          <CanDo permission="DEPARTMENTS_MANAGE">
+            <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md">
+              <Plus className="h-5 w-5" />
+              إضافة قسم
+            </Button>
+          </CanDo>
+        </div>
       </div>
 
       {/* KPI Cards */}
@@ -236,7 +291,7 @@ export default function DepartmentsPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
             >
-              <Card className="border-0 shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+              <Card className="elevation-2 overflow-hidden card-hover">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div>
@@ -257,7 +312,7 @@ export default function DepartmentsPage() {
       </div>
 
       {/* Filters & Table */}
-      <Card className="border-0 shadow-md overflow-hidden">
+      <Card className="elevation-2 overflow-hidden">
         <div className="border-b border-gray-100 bg-gradient-to-l from-gray-50 to-white p-4 sm:p-5">
           <div className="flex flex-col sm:flex-row gap-3">
             <div className="relative flex-1">
@@ -329,6 +384,9 @@ export default function DepartmentsPage() {
                     className={`overflow-hidden border-0 shadow-md hover:shadow-lg transition-all ${
                       dept.isActive === false ? 'opacity-75' : ''
                     }`}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => router.push(`/dashboard/departments/${dept.id}`)}
                   >
                     <CardContent className="p-5">
                       <div className="flex items-start justify-between gap-3">
@@ -361,6 +419,8 @@ export default function DepartmentsPage() {
                           size="sm"
                           onClick={() => openEmployees(dept)}
                           className="gap-1.5 min-h-[44px]"
+                          onMouseDown={(e) => e.stopPropagation()}
+                          onClickCapture={(e) => e.stopPropagation()}
                         >
                           <Users className="h-4 w-4" />
                           {dept._count.employees} موظف
@@ -371,6 +431,8 @@ export default function DepartmentsPage() {
                             variant="ghost"
                             onClick={() => openEdit(dept)}
                             className="gap-1.5 text-gray-600 hover:text-primary-700 min-h-[44px]"
+                            onMouseDown={(e) => e.stopPropagation()}
+                            onClickCapture={(e) => e.stopPropagation()}
                           >
                             <Pencil className="h-4 w-4" />
                             تعديل
@@ -676,7 +738,9 @@ export default function DepartmentsPage() {
                 <span className="font-medium text-gray-900">{emp.fullName}</span>
                 <span className="text-sm text-gray-500">{emp.jobTitle}</span>
                 {emp.department && (
-                  <span className="text-xs text-amber-600">حالياً: {emp.department.name}</span>
+                  <span className="text-xs text-amber-600">
+                    حالياً: {formatDeptUnit({ departmentName: emp.department.name, unitName: emp.unit?.name })}
+                  </span>
                 )}
               </label>
             ))}
@@ -756,6 +820,108 @@ export default function DepartmentsPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      <Modal
+        open={employeeSearchOpen}
+        onClose={() => {
+          setEmployeeSearchOpen(false);
+          setEmployeeSearchTerm('');
+          setSelectedEmployeesForOrgMove({});
+          setOrgMoveOpen(false);
+        }}
+        title="بحث الموظفين (عرض القسم/الوحدة + نقل)"
+        className="max-w-5xl"
+      >
+        <div className="space-y-4">
+          <div className="flex flex-col sm:flex-row gap-3 sm:items-center sm:justify-between">
+            <div className="relative flex-1">
+              <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+              <Input
+                placeholder="ابحث بالاسم أو المسمى..."
+                value={employeeSearchTerm}
+                onChange={(e) => setEmployeeSearchTerm(e.target.value)}
+                className="pr-10 bg-white border-gray-200"
+              />
+            </div>
+            <div className="flex items-center gap-2 self-start sm:self-auto">
+              {selectedOrgIds.length > 0 && (
+                <Button className="gap-2" onClick={() => setOrgMoveOpen(true)}>
+                  نقل المحدد ({selectedOrgIds.length})
+                </Button>
+              )}
+              <Badge variant="secondary">{employeeSearchRows.length} موظف</Badge>
+            </div>
+          </div>
+
+          {employeesSearchLoading ? (
+            <div className="h-40 rounded-xl bg-gray-100 animate-pulse" />
+          ) : employeeSearchRows.length === 0 ? (
+            <EmptyState icon={Users} title="لا يوجد نتائج" description="جرّب كتابة اسم الموظف" compact />
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[52px]">
+                    <input
+                      type="checkbox"
+                      className="h-4 w-4"
+                      checked={selectedOrgIds.length > 0 && selectedOrgIds.length === employeeSearchRows.length}
+                      onChange={(e) => toggleAllEmployeeSearch(e.target.checked)}
+                    />
+                  </TableHead>
+                  <TableHead>الموظف</TableHead>
+                  <TableHead>المسمى</TableHead>
+                  <TableHead>القسم</TableHead>
+                  <TableHead>الوحدة</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {employeeSearchRows.map((e) => (
+                  <TableRow key={e.id}>
+                    <TableCell>
+                      <input
+                        type="checkbox"
+                        className="h-4 w-4"
+                        checked={!!selectedEmployeesForOrgMove[e.id]}
+                        onChange={(ev) =>
+                          setSelectedEmployeesForOrgMove((prev) => {
+                            const next = { ...prev };
+                            if (ev.target.checked) next[e.id] = true;
+                            else delete next[e.id];
+                            return next;
+                          })
+                        }
+                      />
+                    </TableCell>
+                    <TableCell className="font-medium text-gray-900">{e.fullName}</TableCell>
+                    <TableCell className="text-gray-600">{e.jobTitle}</TableCell>
+                    <TableCell>
+                      {e.department?.name ? (
+                        <Badge variant="secondary">
+                          {formatDeptUnit({ departmentName: e.department.name, unitName: e.unit?.name })}
+                        </Badge>
+                      ) : (
+                        <span className="text-gray-400">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      {e.unit?.name ? <Badge variant="secondary">{e.unit.name}</Badge> : <span className="text-gray-400">بدون وحدة</span>}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
+        </div>
+
+        <MoveEmployeesModal
+          open={orgMoveOpen}
+          onClose={() => setOrgMoveOpen(false)}
+          employeeIds={selectedOrgIds}
+          defaultDepartmentId={null}
+          onMoved={() => setSelectedEmployeesForOrgMove({})}
+        />
       </Modal>
     </motion.div>
   );

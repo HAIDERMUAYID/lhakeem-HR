@@ -87,7 +87,14 @@ export class AbsencesService {
         skip: params?.skip ?? 0,
         take: params?.take ?? 20,
         include: {
-          employee: { select: { id: true, fullName: true, department: true } },
+          employee: {
+            select: {
+              id: true,
+              fullName: true,
+              department: true,
+              unit: { select: { id: true, name: true } },
+            },
+          },
         },
         orderBy: { date: 'desc' },
       }),

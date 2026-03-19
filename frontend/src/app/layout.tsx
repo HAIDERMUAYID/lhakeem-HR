@@ -44,7 +44,7 @@ export default function RootLayout({
           richColors
           closeButton
           toastOptions={{
-            className: 'rounded-xl shadow-lg border border-gray-100',
+            className: 'rounded-3xl elevation-2',
           }}
         />
       </body>

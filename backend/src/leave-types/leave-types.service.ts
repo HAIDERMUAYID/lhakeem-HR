@@ -25,6 +25,8 @@ export class LeaveTypesService {
     requiresApproval?: boolean;
     annualAllowance?: number;
     monthlyAccrual?: number;
+    balanceStrategy?: 'CUMULATIVE_SHARED' | 'FIXED_ANNUAL_RESET' | 'NO_BALANCE';
+    balanceGroupId?: string | null;
   }) {
     return this.prisma.leaveType.create({
       data: {
@@ -34,6 +36,8 @@ export class LeaveTypesService {
         requiresApproval: dto.requiresApproval ?? true,
         annualAllowance: dto.annualAllowance,
         monthlyAccrual: dto.monthlyAccrual,
+        balanceStrategy: (dto.balanceStrategy as any) ?? 'CUMULATIVE_SHARED',
+        balanceGroupId: dto.balanceGroupId || null,
       },
     });
   }
@@ -46,6 +50,8 @@ export class LeaveTypesService {
     annualAllowance: number | null;
     monthlyAccrual: number | null;
     isActive: boolean;
+    balanceStrategy: 'CUMULATIVE_SHARED' | 'FIXED_ANNUAL_RESET' | 'NO_BALANCE';
+    balanceGroupId: string | null;
   }>) {
     return this.prisma.leaveType.update({
       where: { id },

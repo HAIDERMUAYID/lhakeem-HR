@@ -43,6 +43,7 @@ import { EmptyState } from '@/components/shared/empty-state';
 import { ErrorState } from '@/components/shared/error-state';
 import { ResponsiveDataView } from '@/components/shared/responsive-data-view';
 import { downloadCSV } from '@/lib/export';
+import { formatDeptUnit } from '@/lib/utils';
 import { motion } from 'framer-motion';
 
 type EmployeeFingerprintRow = {
@@ -59,6 +60,7 @@ type Employee = {
   workType: string;
   isActive: boolean;
   department: { id: string; name: string };
+  unit?: { id: string; name: string } | null;
   manager?: { fullName: string } | null;
   managerUser?: { id: string; name: string } | null;
   updatedAt?: string;
@@ -689,7 +691,7 @@ export default function EmployeesPage() {
               استيراد Excel
             </Button>
           )}
-          <Button onClick={() => { setForm(formDefaults); setAddOpen(true); }} className="gap-2 shadow-md">
+          <Button onClick={() => { setForm(formDefaults); setAddOpen(true); }} className="gap-2">
             <Plus className="h-5 w-5" />
             إضافة موظف
           </Button>
@@ -708,7 +710,7 @@ export default function EmployeesPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
             >
-              <Card className="border-0 shadow-md overflow-hidden hover:shadow-lg transition-shadow">
+              <Card className="elevation-2 overflow-hidden card-hover">
                 <CardContent className="p-5">
                   <div className="flex items-start justify-between">
                     <div>
@@ -729,7 +731,7 @@ export default function EmployeesPage() {
       </div>
 
       {/* Main Table Card */}
-      <Card className="border-0 shadow-md overflow-hidden">
+      <Card className="elevation-2 overflow-hidden">
         <CardHeader className="border-b border-gray-100 bg-gradient-to-l from-gray-50 to-white p-0">
           <div className="p-4 sm:p-5 space-y-4">
             {/* Search & Quick Actions */}
@@ -854,7 +856,7 @@ export default function EmployeesPage() {
                     <TableRow className="bg-gray-50/80 hover:bg-gray-50/80">
                       <SortableHead label="الاسم" field="fullName" />
                       <SortableHead label="العنوان الوظيفي" field="jobTitle" />
-                      <SortableHead label="القسم" field="department" />
+                      <SortableHead label="القسم/الوحدة" field="department" />
                       <TableHead className="font-semibold text-gray-700 min-w-[140px]">
                         <span className="flex items-center gap-1">
                           <Fingerprint className="h-4 w-4 text-violet-500" />
@@ -884,7 +886,9 @@ export default function EmployeesPage() {
                           </Link>
                         </TableCell>
                         <TableCell className="text-gray-600">{emp.jobTitle}</TableCell>
-                        <TableCell>{emp.department?.name ?? '—'}</TableCell>
+                        <TableCell>
+                          {formatDeptUnit({ departmentName: emp.department?.name, unitName: emp.unit?.name })}
+                        </TableCell>
                         <TableCell className="text-gray-600 text-sm">
                           {emp.fingerprints?.length ? (
                             <span className="flex flex-wrap gap-1">
@@ -960,7 +964,9 @@ export default function EmployeesPage() {
                               {emp.fullName}
                             </Link>
                             <p className="text-sm text-gray-600 mt-0.5">{emp.jobTitle}</p>
-                            <p className="text-xs text-gray-500 mt-1">{emp.department?.name ?? '—'}</p>
+                            <p className="text-xs text-gray-500 mt-1">
+                              {formatDeptUnit({ departmentName: emp.department?.name, unitName: emp.unit?.name })}
+                            </p>
                             <div className="flex flex-wrap gap-1.5 mt-2">
                               <Badge variant={emp.isActive ? 'success' : 'default'} className="text-xs">
                                 {emp.isActive ? 'نشط' : 'متوقف'}

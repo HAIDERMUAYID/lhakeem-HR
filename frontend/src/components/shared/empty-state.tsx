@@ -35,7 +35,7 @@ export function EmptyState({
       aria-label={title}
     >
       <div
-        className={`rounded-2xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center shadow-inner ${
+        className={`rounded-3xl bg-gradient-to-br from-gray-100 to-gray-50 flex items-center justify-center elevation-2 ${
           compact ? 'h-14 w-14 mb-3' : 'h-20 w-20 mb-5'
         }`}
       >

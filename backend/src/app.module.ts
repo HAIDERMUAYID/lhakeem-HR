@@ -18,6 +18,7 @@ import { AbsenceReportsModule } from './absence-reports/absence-reports.module';
 import { DevicesModule } from './devices/devices.module';
 import { FingerprintCalendarModule } from './fingerprint-calendar/fingerprint-calendar.module';
 import { HealthModule } from './health/health.module';
+import { UnitsModule } from './units/units.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { HealthModule } from './health/health.module';
     UsersModule,
     EmployeesModule,
     DepartmentsModule,
+    UnitsModule,
     LeaveTypesModule,
     LeaveRequestsModule,
     AbsencesModule,

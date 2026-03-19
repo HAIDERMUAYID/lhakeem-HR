@@ -107,7 +107,7 @@ export default function DashboardPage() {
               transition={{ delay: i * 0.05 }}
             >
               <Link href={stat.href}>
-                <Card className="card-hover overflow-hidden border-0 shadow-md h-full group">
+                <Card className="card-hover overflow-hidden elevation-2 h-full group">
                   <CardContent className="p-6">
                     <div className="flex items-start justify-between">
                       <div>

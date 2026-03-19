@@ -29,7 +29,7 @@ import { Modal } from '@/components/ui/modal';
 import { TableSkeleton } from '@/components/shared/page-skeleton';
 import { ErrorState } from '@/components/shared/error-state';
 import { EmptyState } from '@/components/shared/empty-state';
-import { cn } from '@/lib/utils';
+import { cn, formatDeptUnit } from '@/lib/utils';
 import { toast } from '@/hooks/use-toast';
 import { useBreadcrumbTitle } from '@/contexts/breadcrumb-title';
 
@@ -43,6 +43,7 @@ type Employee = {
   fullName: string;
   jobTitle: string;
   department: { id: string; name: string };
+  unit?: { id: string; name: string } | null;
   manager?: { fullName: string } | null;
   workType: string;
   leaveBalance: number | string;
@@ -318,7 +319,9 @@ export default function EmployeeProfilePage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-gray-900">{employee.fullName}</h1>
-            <p className="text-gray-500">{employee.jobTitle} • {employee.department?.name}</p>
+            <p className="text-gray-500">
+              {employee.jobTitle} • {formatDeptUnit({ departmentName: employee.department?.name, unitName: employee.unit?.name })}
+            </p>
             <div className="flex items-center gap-2 mt-1">
               <Badge variant={employee.isActive ? 'success' : 'default'}>
                 {employee.isActive ? 'نشط' : 'متوقف'}
@@ -373,7 +376,11 @@ export default function EmployeeProfilePage() {
           <CardContent className="grid gap-6 sm:grid-cols-2">
             <InfoRow icon={UserCircle} label="الاسم الكامل" value={employee.fullName} />
             <InfoRow icon={Briefcase} label="العنوان الوظيفي" value={employee.jobTitle} />
-            <InfoRow icon={Building2} label="القسم" value={employee.department?.name} />
+            <InfoRow
+              icon={Building2}
+              label="القسم/الوحدة"
+              value={formatDeptUnit({ departmentName: employee.department?.name, unitName: employee.unit?.name })}
+            />
             <InfoRow icon={UserCircle} label="المدير المباشر" value={employee.manager?.fullName ?? '—'} />
             <InfoRow
               icon={Fingerprint}

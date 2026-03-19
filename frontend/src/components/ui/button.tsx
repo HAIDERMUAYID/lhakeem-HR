@@ -2,10 +2,14 @@ import * as React from 'react';
 import { cn } from '@/lib/utils';
 
 const variantStyles: Record<string, string> = {
-  default: 'bg-primary-700 text-white hover:bg-primary-800',
-  secondary: 'bg-gray-100 text-gray-900 hover:bg-gray-200',
-  outline: 'border-2 border-primary-700 text-primary-700 hover:bg-primary-50',
-  ghost: 'hover:bg-gray-100',
+  default:
+    'bg-primary-700 text-white hover:bg-primary-800 shadow-[0_6px_18px_rgba(15,76,129,0.18)] hover:shadow-[0_10px_26px_rgba(15,76,129,0.22)]',
+  secondary:
+    'bg-gray-100 text-gray-900 hover:bg-gray-200 shadow-[0_1px_2px_rgba(16,24,40,0.06)] hover:shadow-[0_6px_18px_rgba(16,24,40,0.10)]',
+  outline:
+    'border-2 border-primary-700/90 text-primary-700 hover:bg-primary-50 shadow-[0_1px_2px_rgba(16,24,40,0.06)] hover:shadow-[0_6px_18px_rgba(16,24,40,0.10)]',
+  ghost:
+    'hover:bg-gray-100/80',
 };
 
 const sizeStyles: Record<string, string> = {
@@ -19,7 +23,10 @@ export const buttonVariants = (opts?: { variant?: keyof typeof variantStyles; si
   const v = opts?.variant ?? 'default';
   const s = opts?.size ?? 'default';
   return cn(
-    'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 disabled:pointer-events-none disabled:opacity-50 min-h-touch touch-manipulation',
+    'inline-flex items-center justify-center gap-2 rounded-2xl font-medium transition-all duration-200',
+    'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+    'active:translate-y-px disabled:pointer-events-none disabled:opacity-50',
+    'min-h-touch touch-manipulation',
     variantStyles[v],
     sizeStyles[s]
   );
@@ -35,7 +42,10 @@ export interface ButtonProps
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
   ({ className, variant = 'default', size = 'default', asChild, children, ...props }, ref) => {
     const styles = cn(
-      'inline-flex items-center justify-center gap-2 rounded-xl font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600 disabled:pointer-events-none disabled:opacity-50 min-h-touch touch-manipulation',
+      'inline-flex items-center justify-center gap-2 rounded-2xl font-medium transition-all duration-200',
+      'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-600/30 focus-visible:ring-offset-2 focus-visible:ring-offset-white',
+      'active:translate-y-px disabled:pointer-events-none disabled:opacity-50',
+      'min-h-touch touch-manipulation',
       variantStyles[variant],
       sizeStyles[size],
       className

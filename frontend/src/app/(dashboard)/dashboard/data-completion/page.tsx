@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 import { downloadCSV } from '@/lib/export';
+import { formatDeptUnit } from '@/lib/utils';
 
 type DataCompletionStats = {
   totalActive: number;
@@ -18,7 +19,15 @@ type DataCompletionStats = {
   baseline: string | null;
   updatedIncompleteSinceBaseline: number;
 };
-type EmployeeRow = { id: string; fullName: string; jobTitle?: string; department?: { name: string }; leaveBalance?: string | number; updatedAt?: string };
+type EmployeeRow = {
+  id: string;
+  fullName: string;
+  jobTitle?: string;
+  department?: { name: string };
+  unit?: { name: string } | null;
+  leaveBalance?: string | number;
+  updatedAt?: string;
+};
 type EmployeesResponse = { data: EmployeeRow[]; total: number };
 
 export default function DataCompletionPage() {
@@ -75,11 +84,11 @@ export default function DataCompletionPage() {
       if (departmentId) params.set('departmentId', departmentId);
       const res = await apiGet<EmployeesResponse>(`/api/employees?${params}`);
       const list = res?.data ?? [];
-      const headers = ['الاسم', 'العنوان الوظيفي', 'القسم', 'الرصيد', 'آخر تحديث'];
+      const headers = ['الاسم', 'العنوان الوظيفي', 'القسم/الوحدة', 'الرصيد', 'آخر تحديث'];
       const rows = list.map((e) => [
         e.fullName,
         e.jobTitle ?? '',
-        e.department?.name ?? '—',
+        formatDeptUnit({ departmentName: e.department?.name, unitName: e.unit?.name }),
         String(e.leaveBalance ?? '—'),
         e.updatedAt ? new Date(e.updatedAt).toLocaleDateString('ar-EG', { dateStyle: 'short' }) : '—',
       ]);
@@ -103,11 +112,11 @@ export default function DataCompletionPage() {
       if (departmentId) params.set('departmentId', departmentId);
       const res = await apiGet<EmployeesResponse>(`/api/employees?${params}`);
       const list = res?.data ?? [];
-      const headers = ['الاسم', 'العنوان الوظيفي', 'القسم', 'الرصيد', 'آخر تحديث'];
+      const headers = ['الاسم', 'العنوان الوظيفي', 'القسم/الوحدة', 'الرصيد', 'آخر تحديث'];
       const rows = list.map((e) => [
         e.fullName,
         e.jobTitle ?? '',
-        e.department?.name ?? '—',
+        formatDeptUnit({ departmentName: e.department?.name, unitName: e.unit?.name }),
         String(e.leaveBalance ?? '—'),
         e.updatedAt ? new Date(e.updatedAt).toLocaleString('ar-EG') : '—',
       ]);

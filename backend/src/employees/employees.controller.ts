@@ -137,4 +137,18 @@ export class EmployeesController {
       workType: dto.workType as WorkType | undefined,
     });
   }
+
+  @Post('move')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.EMPLOYEES_MANAGE, PERMISSIONS.DEPARTMENTS_MANAGE)
+  async moveEmployees(
+    @Body()
+    dto: {
+      employeeIds: string[];
+      targetDepartmentId: string;
+      targetUnitId?: string | null;
+    },
+  ) {
+    return this.employeesService.moveEmployees(dto);
+  }
 }

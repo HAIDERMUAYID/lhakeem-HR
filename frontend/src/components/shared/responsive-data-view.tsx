@@ -28,7 +28,7 @@ export function ResponsiveDataView({
   cardClassName,
 }: ResponsiveDataViewProps) {
   return (
-    <div className={cn('w-full overflow-hidden', className)}>
+    <div className={cn('w-full overflow-hidden elevation-0', className)}>
       <div className={cn('hidden md:block overflow-x-auto', tableClassName)} data-responsive-table>
         {tableContent}
       </div>
@@ -36,7 +36,7 @@ export function ResponsiveDataView({
         className={cn('block md:hidden space-y-3 overflow-x-hidden', cardClassName)}
         data-responsive-cards
       >
-        {cardContent}
+        <div className="space-y-3">{cardContent}</div>
       </div>
     </div>
   );
