@@ -22,9 +22,28 @@ type AuditLog = {
   userAgent: string | null;
   createdAt: string;
   user: { name: string; username: string | null } | null;
+  message?: string;
+  deviceLabel?: string;
+  browserLabel?: string;
+  osLabel?: string;
 };
 
 type AuditRes = { data: AuditLog[]; total: number };
+type ActiveSession = {
+  userId: string;
+  userName: string;
+  username: string | null;
+  ipAddress: string | null;
+  userAgent: string | null;
+  deviceLabel: string;
+  browserLabel: string;
+  osLabel: string;
+  lastSeenAt: string;
+  firstSeenAt: string;
+  actionsCount: number;
+  isActiveNow: boolean;
+};
+type ActiveSessionsRes = { data: ActiveSession[]; total: number; windowMinutes: number };
 
 const actionLabels: Record<string, string> = {
   LOGIN_SUCCESS: 'تسجيل دخول ناجح',
@@ -102,10 +121,18 @@ function formatDetails(details: object | null): string {
   }
 }
 
+function friendlyAuditMessage(log: AuditLog): string {
+  if (log.message?.trim()) return log.message;
+  const action = actionLabels[log.action] || log.action;
+  const entity = entityLabels[log.entity] || log.entity;
+  return `${action} على ${entity}`;
+}
+
 export default function AuditLogsPage() {
   const [page, setPage] = useState(1);
   const [entityFilter, setEntityFilter] = useState('');
   const [actionFilter, setActionFilter] = useState('');
+  const [usernameFilter, setUsernameFilter] = useState('');
   const [fromDate, setFromDate] = useState('');
   const [toDate, setToDate] = useState('');
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
@@ -114,15 +141,21 @@ export default function AuditLogsPage() {
   const params = new URLSearchParams({ page: String(page), limit: String(pageSize) });
   if (entityFilter) params.set('entity', entityFilter);
   if (actionFilter) params.set('action', actionFilter);
+  if (usernameFilter.trim()) params.set('username', usernameFilter.trim());
   if (fromDate) params.set('fromDate', fromDate);
   if (toDate) params.set('toDate', toDate);
 
   const { data, isLoading, error } = useQuery({
-    queryKey: ['audit-logs', page, entityFilter, actionFilter, fromDate, toDate],
+    queryKey: ['audit-logs', page, entityFilter, actionFilter, usernameFilter, fromDate, toDate],
     queryFn: () => apiGet<AuditRes>(`/api/audit-logs?${params}`),
+  });
+  const { data: sessionsData, isLoading: sessionsLoading } = useQuery({
+    queryKey: ['audit-active-sessions'],
+    queryFn: () => apiGet<ActiveSessionsRes>('/api/audit-logs/active-sessions?minutes=180'),
   });
 
   const logs = data?.data ?? [];
+  const sessions = sessionsData?.data ?? [];
   const total = data?.total ?? 0;
   const totalPages = Math.ceil(total / pageSize);
 
@@ -148,6 +181,51 @@ export default function AuditLogsPage() {
           يُسجَّل تلقائياً: تسجيل الدخول (نجاح/فشل)، تغيير كلمة المرور، و<strong>كل طلبات API</strong> (مسار، استعلام، جسم الطلب بعد إخفاء كلمات المرور، رمز الاستجابة، المدة، عنوان IP، المتصفح).
         </p>
       </div>
+
+      <Card className="overflow-hidden border-0 shadow-md">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-semibold text-gray-900">الجلسات النشطة</h2>
+            <span className="text-xs text-gray-500">آخر 3 ساعات</span>
+          </div>
+          {sessionsLoading ? (
+            <div className="text-sm text-gray-500 py-3">جاري تحميل الجلسات...</div>
+          ) : sessions.length === 0 ? (
+            <div className="text-sm text-gray-500 py-3">لا توجد جلسات نشطة حاليًا</div>
+          ) : (
+            <div className="space-y-2">
+              {sessions.slice(0, 12).map((s, idx) => (
+                <div
+                  key={`${s.userId}-${s.ipAddress}-${idx}`}
+                  className="rounded-xl border border-gray-100 bg-white p-3 flex flex-col md:flex-row md:items-center md:justify-between gap-2"
+                >
+                  <div>
+                    <p className="font-medium text-gray-900">
+                      {s.userName}
+                      {s.username ? ` (@${s.username})` : ''}
+                    </p>
+                    <p className="text-sm text-gray-600">
+                      {s.deviceLabel} • {s.browserLabel} • {s.osLabel}
+                    </p>
+                    <p className="text-xs text-gray-400 break-all">
+                      {s.ipAddress || 'IP غير متوفر'} • آخر نشاط: {new Date(s.lastSeenAt).toLocaleString('ar-EG')}
+                    </p>
+                  </div>
+                  <div className="text-xs">
+                    <span
+                      className={`inline-flex rounded-full px-2 py-1 ${
+                        s.isActiveNow ? 'bg-emerald-50 text-emerald-700' : 'bg-gray-100 text-gray-600'
+                      }`}
+                    >
+                      {s.isActiveNow ? 'نشطة الآن' : 'غير نشطة الآن'}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <Card className="border-0 shadow-md overflow-hidden">
         <CardContent className="p-4">
@@ -183,6 +261,15 @@ export default function AuditLogsPage() {
               </select>
             </div>
             <div>
+              <label className="block text-xs font-medium text-gray-500 mb-1">اسم المستخدم</label>
+              <Input
+                value={usernameFilter}
+                onChange={(e) => setUsernameFilter(e.target.value)}
+                placeholder="مثال: admin"
+                className="w-48"
+              />
+            </div>
+            <div>
               <label className="block text-xs font-medium text-gray-500 mb-1">من تاريخ</label>
               <Input
                 type="date"
@@ -206,6 +293,7 @@ export default function AuditLogsPage() {
               onClick={() => {
                 setEntityFilter('');
                 setActionFilter('');
+                setUsernameFilter('');
                 setFromDate('');
                 setToDate('');
                 setPage(1);
@@ -247,7 +335,7 @@ export default function AuditLogsPage() {
                         <div className="min-w-0">
                           <div className="flex flex-wrap items-center gap-2">
                             <p className="font-medium text-gray-900">
-                              {actionLabels[log.action] || log.action}
+                              {friendlyAuditMessage(log)}
                             </p>
                             {href && (
                               <Link
@@ -267,6 +355,15 @@ export default function AuditLogsPage() {
                             {entityLabels[log.entity] || log.entity}
                             {log.entityId && ` • مرجع #${log.entityId.slice(-8)}`}
                           </p>
+                          {(log.deviceLabel || log.browserLabel || log.osLabel) && (
+                            <p className="text-xs text-gray-500 mt-1">
+                              {(log.deviceLabel || 'جهاز غير معروف') +
+                                ' • ' +
+                                (log.browserLabel || 'متصفح غير معروف') +
+                                ' • ' +
+                                (log.osLabel || 'نظام غير معروف')}
+                            </p>
+                          )}
                           {(log.ipAddress || log.userAgent) && (
                             <p className="text-xs text-gray-400 mt-1 break-all">
                               {log.ipAddress && <span>IP: {log.ipAddress} </span>}
