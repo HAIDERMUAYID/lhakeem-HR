@@ -1,14 +1,10 @@
 import { Injectable, ConflictException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class AbsencesService {
-  constructor(
-    private prisma: PrismaService,
-    private audit: AuditService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   private async validateAbsence(employeeId: string, date: Date) {
     const d = new Date(date);
@@ -119,14 +115,6 @@ export class AbsencesService {
       },
     });
 
-    await this.audit.log(
-      recordedBy,
-      'ABSENCE_CREATE',
-      'Absence',
-      absence.id,
-      { employeeId: dto.employeeId, date: dto.date },
-    );
-
     return absence;
   }
 
@@ -143,11 +131,6 @@ export class AbsencesService {
         cancelledBy,
       },
       include: { employee: { select: { fullName: true } } },
-    });
-
-    await this.audit.log(cancelledBy, 'ABSENCE_CANCEL', 'Absence', id, {
-      employeeId: abs.employeeId,
-      date: abs.date,
     });
 
     return updated;

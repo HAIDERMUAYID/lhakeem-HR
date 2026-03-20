@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
 import { PrismaModule } from './prisma/prisma.module';
 import { PermissionsGuard } from './auth/guards/permissions.guard';
@@ -12,6 +13,7 @@ import { AbsencesModule } from './absences/absences.module';
 import { HolidaysModule } from './holidays/holidays.module';
 import { WorkSchedulesModule } from './work-schedules/work-schedules.module';
 import { AuditModule } from './audit/audit.module';
+import { AuditHttpInterceptor } from './audit/audit-http.interceptor';
 import { BalanceModule } from './balance/balance.module';
 import { AttendanceValidationModule } from './attendance-validation/attendance-validation.module';
 import { AbsenceReportsModule } from './absence-reports/absence-reports.module';
@@ -42,6 +44,10 @@ import { UnitsModule } from './units/units.module';
     DevicesModule,
     FingerprintCalendarModule,
   ],
-  providers: [PermissionsGuard],
+  providers: [
+    PermissionsGuard,
+    AuditHttpInterceptor,
+    { provide: APP_INTERCEPTOR, useClass: AuditHttpInterceptor },
+  ],
 })
 export class AppModule {}

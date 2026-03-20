@@ -381,15 +381,16 @@ model WorkSchedule {
 
 model AuditLog {
   id         String   @id @default(cuid())
-  userId     String   @map("user_id")
+  userId     String?  @map("user_id")
   action     String
   entity     String
   entityId   String?  @map("entity_id")
   details    Json?
   ipAddress  String?  @map("ip_address")
+  userAgent  String?  @map("user_agent")
   createdAt  DateTime @default(now()) @map("created_at")
 
-  user User @relation(fields: [userId], references: [id])
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@map("audit_logs")
 }

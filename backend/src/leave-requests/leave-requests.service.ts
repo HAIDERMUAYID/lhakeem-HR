@@ -1,6 +1,5 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
 import { HolidaysService } from '../holidays/holidays.service';
 import { WorkSchedulesService } from '../work-schedules/work-schedules.service';
 import { LeaveStatus } from '@prisma/client';
@@ -41,7 +40,6 @@ function getHoursFromSchedule(schedule: { startTime: string; endTime: string; br
 export class LeaveRequestsService {
   constructor(
     private prisma: PrismaService,
-    private audit: AuditService,
     private holidaysService: HolidaysService,
     private workSchedulesService: WorkSchedulesService,
   ) {}
@@ -735,13 +733,6 @@ export class LeaveRequestsService {
           date: { gte: rangeStart, lte: rangeEnd },
         },
       });
-      await this.audit.log(
-        dto.createdByUserId!,
-        'LEAVE_APPROVE',
-        'LeaveRequest',
-        created.id,
-        { employeeId: dto.employeeId, daysCount: daysCount ?? 1 },
-      );
       return created;
     }
 
@@ -811,14 +802,6 @@ export class LeaveRequestsService {
         },
       });
     }
-
-    await this.audit.log(
-      approvedBy,
-      status === 'APPROVED' ? 'LEAVE_APPROVE' : 'LEAVE_REJECT',
-      'LeaveRequest',
-      id,
-      { employeeId: req.employeeId, daysCount: req.daysCount },
-    );
 
     return updated;
   }

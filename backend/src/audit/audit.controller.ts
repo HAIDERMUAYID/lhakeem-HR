@@ -21,7 +21,7 @@ export class AuditController {
     @Query('toDate') toDate?: string,
   ) {
     const skip = (parseInt(page, 10) - 1) * parseInt(limit, 10);
-    const take = Math.min(parseInt(limit, 10) || 50, 100);
+    const take = Math.min(parseInt(limit, 10) || 50, 200);
     const where: { entity?: string; action?: string; createdAt?: { gte?: Date; lte?: Date } } = {};
     if (entity?.trim()) where.entity = entity.trim();
     if (action?.trim()) where.action = action.trim();
@@ -45,7 +45,7 @@ export class AuditController {
         where,
         skip,
         take,
-        include: { user: { select: { name: true } } },
+        include: { user: { select: { name: true, username: true } } },
         orderBy: { createdAt: 'desc' },
       }),
       this.prisma.auditLog.count({ where }),

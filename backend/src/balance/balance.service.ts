@@ -1,13 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuditService } from '../audit/audit.service';
-
 @Injectable()
 export class BalanceService {
-  constructor(
-    private prisma: PrismaService,
-    private audit: AuditService,
-  ) {}
+  constructor(private prisma: PrismaService) {}
 
   /**
    * استحقاق رصيد الإجازات يومياً لجميع الموظفين النشطين.
@@ -32,11 +27,6 @@ export class BalanceService {
         data: { leaveBalance: { increment: accrual } },
       });
     }
-
-    await this.audit.log(userId, 'BALANCE_ACCRUAL_DAILY', 'Employee', undefined, {
-      employeeCount: employees.length,
-      amountPerEmployee: accrual,
-    });
 
     return {
       accrued: employees.length,
@@ -67,14 +57,6 @@ export class BalanceService {
         data: { leaveBalance: { increment: totalAccrual } },
       });
     }
-
-    await this.audit.log(
-      userId,
-      'BALANCE_ACCRUAL',
-      'Employee',
-      undefined,
-      { employeeCount: employees.length, amountPerEmployee: totalAccrual },
-    );
 
     return {
       accrued: employees.length,

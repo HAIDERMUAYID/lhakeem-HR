@@ -1,4 +1,5 @@
-import { Controller, Get, Post, Body, UseGuards, InternalServerErrorException } from '@nestjs/common';
+import { Controller, Get, Post, Body, UseGuards, InternalServerErrorException, Req } from '@nestjs/common';
+import { Request } from 'express';
 import { IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
@@ -30,9 +31,9 @@ export class AuthController {
   constructor(private authService: AuthService) {}
 
   @Post('login')
-  async login(@Body() dto: LoginDto) {
+  async login(@Body() dto: LoginDto, @Req() req: Request) {
     try {
-      return await this.authService.login(dto.username.trim(), dto.password);
+      return await this.authService.login(dto.username.trim(), dto.password, req);
     } catch (err) {
       if (err && typeof err === 'object' && 'statusCode' in err && (err as { statusCode: number }).statusCode === 401) {
         throw err;
@@ -47,8 +48,9 @@ export class AuthController {
   async changePassword(
     @CurrentUser() user: { id: string },
     @Body() dto: ChangePasswordDto,
+    @Req() req: Request,
   ) {
-    return this.authService.changePassword(user.id, dto.currentPassword, dto.newPassword);
+    return this.authService.changePassword(user.id, dto.currentPassword, dto.newPassword, req);
   }
 
   @Get('permissions')
