@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { HolidaysService } from '../holidays/holidays.service';
-import { WorkType } from '@prisma/client';
+import { isRestDayFromSchedule } from '../common/schedule-day.util';
 
 export type AbsenceBlockReason = 'LEAVE' | 'REST_DAY' | 'OFFICIAL_HOLIDAY';
 
@@ -18,52 +18,6 @@ export class AttendanceValidationService {
     private prisma: PrismaService,
     private holidaysService: HolidaysService,
   ) {}
-
-  /**
-   * يوم الاستراحة: السبت=0، الأحد=1، ... الجمعة=6 في daysOfWeek
-   * JS: الأحد=0، الاثنين=1، ... السبت=6
-   * تحويل: (jsDay + 1) % 7 يعطي: أحد->1، اثنين->2، ... سبت->0، جمعة->6
-   */
-  private isRestDayFromSchedule(
-    date: Date,
-    schedule: {
-      workType: WorkType;
-      shiftPattern: string | null;
-      daysOfWeek: string;
-      cycleStartDate: Date | null;
-    },
-  ): boolean {
-    const y = date.getFullYear();
-    const m = date.getMonth() + 1;
-    const dayStart = new Date(y, date.getMonth(), date.getDate(), 0, 0, 0, 0);
-    const jsDay = date.getDay();
-
-    if (schedule.workType === 'MORNING' || (schedule.workType === 'SHIFTS' && schedule.shiftPattern === 'FIXED')) {
-      const dayIndex = (jsDay + 1) % 7;
-      const workDays = schedule.daysOfWeek.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !Number.isNaN(n));
-      return !workDays.includes(dayIndex);
-    }
-
-    if (schedule.workType === 'SHIFTS' && schedule.shiftPattern && schedule.cycleStartDate) {
-      const cycleStart = new Date(schedule.cycleStartDate);
-      cycleStart.setHours(0, 0, 0, 0);
-      const diffMs = dayStart.getTime() - cycleStart.getTime();
-      const dayIndex = Math.floor(diffMs / 86400000);
-      if (dayIndex < 0) return true;
-      const pattern = schedule.shiftPattern;
-      const isWork =
-        pattern === '1x1'
-          ? dayIndex % 2 === 0
-          : pattern === '1x2'
-            ? dayIndex % 3 === 0
-            : pattern === '1x3'
-              ? dayIndex % 4 === 0
-              : true;
-      return !isWork;
-    }
-
-    return false;
-  }
 
   async validateCanAddAbsence(employeeId: string, date: Date): Promise<ValidateAbsenceResult> {
     const d = new Date(date);
@@ -110,7 +64,7 @@ export class AttendanceValidationService {
       };
     }
 
-    if (workSchedule && this.isRestDayFromSchedule(d, workSchedule)) {
+    if (workSchedule && isRestDayFromSchedule(d, workSchedule)) {
       return {
         canAdd: false,
         reason: 'REST_DAY',

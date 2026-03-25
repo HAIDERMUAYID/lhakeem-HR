@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -16,15 +16,21 @@ import {
   Layers,
   Undo2,
   AlertCircle,
+  Upload,
+  FileSpreadsheet,
+  Clock3,
+  Search,
+  ClipboardList,
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
-import { apiGet, apiPost, apiPatch, apiDelete } from '@/lib/api';
+import { apiGet, apiPost, apiPatch, apiDelete, apiUpload } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Modal } from '@/components/ui/modal';
 import { motion } from 'framer-motion';
 import { EmptyState } from '@/components/shared/empty-state';
+import { cn } from '@/lib/utils';
 
 type DeviceDetail = {
   id: string;
@@ -54,6 +60,110 @@ type FingerprintRecord = {
   device: { id: string; name: string };
 };
 
+type ImportRejection = { rowNumber: number; reason: string };
+
+type AttendanceImportBatch = {
+  id: string;
+  fileName: string;
+  status: string;
+  rowsTotal: number;
+  rowsParsed: number;
+  rowsAccepted: number;
+  rowsRejected: number;
+  createdAt: string;
+  uploadedBy?: { id: string; name: string; username?: string | null } | null;
+  _count?: { rawLogs: number; dailyRecords: number };
+  rejections?: ImportRejection[] | null;
+};
+
+type AttendanceDailyRecord = {
+  id: string;
+  workDate: string;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+  workedMinutes: number | null;
+  isValid: boolean;
+  validationReason: string | null;
+  employee: { id: string; fullName: string; jobTitle: string; department?: { name: string } | null };
+  batch: { id: string; fileName: string; createdAt: string };
+};
+
+type AttendanceSheetRow = {
+  employeeId: string;
+  fullName: string;
+  jobTitle: string;
+  departmentName: string | null;
+  workDate: string;
+  checkInAt: string | null;
+  checkOutAt: string | null;
+  workedMinutes: number | null;
+  punchIsValid: boolean | null;
+  punchNote: string | null;
+  dayKind: 'LEAVE' | 'OFFICIAL_HOLIDAY' | 'REST_DAY' | 'WORK_EXPECTED';
+  dayKindLabel: string;
+  leaveTypeName: string | null;
+  officialHolidayName: string | null;
+  breakTimeLabel: string | null;
+};
+
+type AttendanceSheetResponse = {
+  deviceId: string;
+  batchId: string | null;
+  fromDate: string;
+  toDate: string;
+  employeeCount: number;
+  rowCount: number;
+  rows: AttendanceSheetRow[];
+};
+
+/** عرض التواريخ والأوقات بأرقام لاتينية (إنجليزية) مع بقاء واجهة عربية */
+const DISPLAY_LOCALE = 'en-GB';
+
+function formatLatinDate(iso: string) {
+  return new Date(iso).toLocaleDateString(DISPLAY_LOCALE, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    numberingSystem: 'latn',
+  });
+}
+
+function formatLatinTime(iso: string) {
+  return new Date(iso).toLocaleTimeString(DISPLAY_LOCALE, {
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+    numberingSystem: 'latn',
+  });
+}
+
+function formatLatinDateTime(iso: string) {
+  return new Date(iso).toLocaleString(DISPLAY_LOCALE, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: true,
+    numberingSystem: 'latn',
+  });
+}
+
+function sheetDayKindClass(kind: AttendanceSheetRow['dayKind']) {
+  switch (kind) {
+    case 'LEAVE':
+      return 'bg-violet-50 text-violet-800';
+    case 'OFFICIAL_HOLIDAY':
+      return 'bg-sky-50 text-sky-800';
+    case 'REST_DAY':
+      return 'bg-slate-100 text-slate-700';
+    default:
+      return 'bg-gray-50 text-gray-700';
+  }
+}
+
 export default function DeviceDetailPage() {
   const params = useParams();
   const queryClient = useQueryClient();
@@ -76,6 +186,23 @@ export default function DeviceDetailPage() {
   /** أسماء الموظفين المختارين عند الانتقال لخطوة إدخال المعرف (لتجنب ظهور الـ ID إذا تغيّرت القائمة) */
   const [selectedEmployeesSnapshot, setSelectedEmployeesSnapshot] = useState<{ id: string; fullName: string }[]>([]);
   const [addStepLoading, setAddStepLoading] = useState(false);
+  const [attendanceFile, setAttendanceFile] = useState<File | null>(null);
+  const [recordsFromDate, setRecordsFromDate] = useState('');
+  const [recordsToDate, setRecordsToDate] = useState('');
+  const [attendanceRecordSearch, setAttendanceRecordSearch] = useState('');
+  /** واجهة واحدة في كل مرة: موظفو الجهاز أو الحضور والانصراف */
+  const [deviceViewTab, setDeviceViewTab] = useState<'employees' | 'attendance'>('employees');
+  const [importRejectionsModal, setImportRejectionsModal] = useState<{
+    open: boolean;
+    title: string;
+    items: ImportRejection[];
+  }>({ open: false, title: '', items: [] });
+  /** كشف الجهاز: دفعة رفع أو نطاق تواريخ */
+  const [sheetMode, setSheetMode] = useState<'batch' | 'range'>('batch');
+  const [sheetBatchId, setSheetBatchId] = useState('');
+  const [sheetFromDate, setSheetFromDate] = useState('');
+  const [sheetToDate, setSheetToDate] = useState('');
+  const [sheetSearch, setSheetSearch] = useState('');
 
   const { data: device, isLoading, error } = useQuery({
     queryKey: ['device', deviceId],
@@ -94,6 +221,78 @@ export default function DeviceDetailPage() {
 
   const employeesList = employeesData?.data ?? [];
   const alreadyOnDevice = new Set((device?.fingerprints ?? []).map((f) => f.employeeId));
+
+  const { data: attendanceImports, isLoading: attendanceImportsLoading } = useQuery({
+    queryKey: ['attendance-imports', deviceId],
+    queryFn: () => apiGet<AttendanceImportBatch[]>(`/api/devices/${deviceId}/attendance-imports`),
+    enabled: !!deviceId,
+  });
+
+  const recordsQuery = new URLSearchParams();
+  if (recordsFromDate) recordsQuery.set('fromDate', recordsFromDate);
+  if (recordsToDate) recordsQuery.set('toDate', recordsToDate);
+  const { data: attendanceDailyRecords, isLoading: attendanceDailyLoading } = useQuery({
+    queryKey: ['attendance-daily-records', deviceId, recordsFromDate, recordsToDate],
+    queryFn: () =>
+      apiGet<AttendanceDailyRecord[]>(
+        `/api/devices/${deviceId}/attendance-daily-records${recordsQuery.toString() ? `?${recordsQuery}` : ''}`,
+      ),
+    enabled: !!deviceId,
+  });
+
+  const fingerprintsSorted = useMemo(() => {
+    const list = device?.fingerprints ?? [];
+    return [...list].sort((a, b) =>
+      a.fingerprintId.localeCompare(b.fingerprintId, undefined, { numeric: true, sensitivity: 'base' }),
+    );
+  }, [device?.fingerprints]);
+
+  const attendanceFiltered = useMemo(() => {
+    const list = attendanceDailyRecords ?? [];
+    const q = attendanceRecordSearch.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((r) => {
+      const name = r.employee.fullName.toLowerCase();
+      const job = (r.employee.jobTitle ?? '').toLowerCase();
+      return name.includes(q) || job.includes(q);
+    });
+  }, [attendanceDailyRecords, attendanceRecordSearch]);
+
+  useEffect(() => {
+    if (sheetMode !== 'batch' || sheetBatchId || !(attendanceImports ?? []).length) return;
+    setSheetBatchId((attendanceImports ?? [])[0].id);
+  }, [sheetMode, sheetBatchId, attendanceImports]);
+
+  const sheetQueryEnabled =
+    !!deviceId &&
+    deviceViewTab === 'attendance' &&
+    (sheetMode === 'batch' ? !!sheetBatchId : !!(sheetFromDate && sheetToDate));
+
+  const { data: attendanceSheet, isLoading: sheetLoading, error: sheetQueryError } = useQuery({
+    queryKey: ['attendance-sheet', deviceId, sheetMode, sheetBatchId, sheetFromDate, sheetToDate],
+    queryFn: () => {
+      const p = new URLSearchParams();
+      if (sheetMode === 'batch') p.set('batchId', sheetBatchId);
+      else {
+        p.set('fromDate', sheetFromDate);
+        p.set('toDate', sheetToDate);
+      }
+      return apiGet<AttendanceSheetResponse>(`/api/devices/${deviceId}/attendance-sheet?${p}`);
+    },
+    enabled: sheetQueryEnabled,
+  });
+
+  const sheetFiltered = useMemo(() => {
+    const list = attendanceSheet?.rows ?? [];
+    const q = sheetSearch.trim().toLowerCase();
+    if (!q) return list;
+    return list.filter((r) => {
+      const name = r.fullName.toLowerCase();
+      const job = (r.jobTitle ?? '').toLowerCase();
+      const dept = (r.departmentName ?? '').toLowerCase();
+      return name.includes(q) || job.includes(q) || dept.includes(q);
+    });
+  }, [attendanceSheet?.rows, sheetSearch]);
 
   const updateFingerprintMutation = useMutation({
     mutationFn: ({
@@ -137,6 +336,53 @@ export default function DeviceDetailPage() {
       deviceId: string;
       fingerprintId: string;
     }) => apiPost(`/api/employees/${employeeId}/fingerprints`, { deviceId: devId, fingerprintId }),
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const uploadAttendanceMutation = useMutation({
+    mutationFn: async () => {
+      if (!attendanceFile) throw new Error('اختر ملف Excel أولاً');
+      const fd = new FormData();
+      fd.append('file', attendanceFile);
+      return apiUpload<{
+        ok: boolean;
+        rowsTotal: number;
+        rowsAccepted: number;
+        rowsRejected: number;
+        warningsCount?: number;
+        rejections?: ImportRejection[];
+      }>(`/api/devices/${deviceId}/attendance-imports`, fd);
+    },
+    onSuccess: (res) => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-imports', deviceId] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-daily-records', deviceId] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-sheet', deviceId] });
+      setAttendanceFile(null);
+      const rej = res.rejections ?? [];
+      if (rej.length > 0) {
+        setImportRejectionsModal({
+          open: true,
+          title: `الأخطاء والتنبيهات بعد الرفع (${rej.length})`,
+          items: rej,
+        });
+      }
+      const w = res.warningsCount ?? 0;
+      toast.success(
+        `تمت معالجة الملف: إجمالي صفوف ${res.rowsTotal} — سجلات يومية ${res.rowsAccepted} — صفوف مرفوضة ${res.rowsRejected}${w > 0 ? ` — تنبيهات معالجة ${w}` : ''}`,
+      );
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
+
+  const deleteAttendanceImportMutation = useMutation({
+    mutationFn: (batchId: string) =>
+      apiDelete<{ ok: boolean }>(`/api/devices/${deviceId}/attendance-imports/${batchId}`),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['attendance-imports', deviceId] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-daily-records', deviceId] });
+      queryClient.invalidateQueries({ queryKey: ['attendance-sheet', deviceId] });
+      toast.success('تم حذف ملف الرفع وكل سجلات الحضور/الانصراف التابعة له');
+    },
     onError: (e: Error) => toast.error(e.message),
   });
 
@@ -361,7 +607,7 @@ export default function DeviceDetailPage() {
     );
   }
 
-  const fingerprints = device?.fingerprints ?? [];
+  const fingerprints = fingerprintsSorted;
   const editingRecord = editRecordId ? fingerprints.find((f) => f.id === editRecordId) : null;
 
   return (
@@ -379,31 +625,97 @@ export default function DeviceDetailPage() {
           <ChevronRight className="h-4 w-4" />
           <span className="text-gray-900 font-medium">{device?.name ?? '...'}</span>
         </div>
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-          <div className="flex items-center gap-4">
-            <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shrink-0">
-              <Fingerprint className="h-7 w-7 text-white" />
-            </div>
-            <div>
-              <h1 className="text-2xl font-bold text-gray-900">{device?.name ?? '...'}</h1>
-              {device?.code && <p className="text-gray-500">{device.code}</p>}
-              {device?.location && (
-                <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
-                  <MapPin className="h-4 w-4" />
-                  {device.location}
-                </p>
-              )}
-            </div>
+        <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+          <div className="h-14 w-14 rounded-xl bg-gradient-to-br from-violet-500 to-violet-700 flex items-center justify-center shrink-0">
+            <Fingerprint className="h-7 w-7 text-white" />
           </div>
-          <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md min-h-[44px]">
-            <Plus className="h-5 w-5" />
-            إضافة موظفين
-          </Button>
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">{device?.name ?? '...'}</h1>
+            {device?.code && <p className="text-gray-500">{device.code}</p>}
+            {device?.location && (
+              <p className="text-sm text-gray-500 flex items-center gap-1 mt-0.5">
+                <MapPin className="h-4 w-4" />
+                {device.location}
+              </p>
+            )}
+          </div>
         </div>
       </div>
 
       <Card className="border-0 shadow-md overflow-hidden">
+        <CardContent className="p-3 sm:p-4">
+          <div
+            role="tablist"
+            aria-label="اختيار قسم الجهاز"
+            className="flex flex-col sm:flex-row gap-2 sm:inline-flex sm:gap-1 rounded-xl border border-gray-200 bg-gray-100/90 p-1 w-full sm:w-auto"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={deviceViewTab === 'employees'}
+              id="tab-device-employees"
+              aria-controls="panel-device-employees"
+              className={cn(
+                'flex items-center justify-center gap-2 rounded-lg px-4 py-3 sm:py-2.5 text-sm font-medium min-h-[48px] sm:min-h-[44px] transition-all',
+                deviceViewTab === 'employees'
+                  ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200/80'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/60',
+              )}
+              onClick={() => setDeviceViewTab('employees')}
+            >
+              <Users className="h-4 w-4 shrink-0 text-violet-600" />
+              إدارة موظفي الجهاز
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={deviceViewTab === 'attendance'}
+              id="tab-device-attendance"
+              aria-controls="panel-device-attendance"
+              className={cn(
+                'flex items-center justify-center gap-2 rounded-lg px-4 py-3 sm:py-2.5 text-sm font-medium min-h-[48px] sm:min-h-[44px] transition-all',
+                deviceViewTab === 'attendance'
+                  ? 'bg-white text-gray-900 shadow-sm ring-1 ring-gray-200/80'
+                  : 'text-gray-600 hover:text-gray-900 hover:bg-white/60',
+              )}
+              onClick={() => setDeviceViewTab('attendance')}
+            >
+              <Clock3 className="h-4 w-4 shrink-0 text-blue-600" />
+              الحضور والانصراف
+            </button>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* إدارة موظفي الجهاز */}
+      {deviceViewTab === 'employees' && (
+      <Card
+        className="border-0 shadow-md overflow-hidden"
+        id="panel-device-employees"
+        role="tabpanel"
+        aria-labelledby="tab-device-employees"
+      >
         <CardContent className="p-0">
+          <div className="p-5 border-b border-gray-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-12 w-12 rounded-xl bg-violet-100 flex items-center justify-center shrink-0">
+                <Users className="h-6 w-6 text-violet-700" />
+              </div>
+              <div className="min-w-0">
+                <h2 className="text-lg font-semibold text-gray-900">موظفو الجهاز</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  الربط بمعرف البصمة على هذا الجهاز — معرف الجهاز:{' '}
+                  <span className="font-mono text-gray-800 tabular-nums" dir="ltr">
+                    {deviceId}
+                  </span>
+                </p>
+              </div>
+            </div>
+            <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md min-h-[44px] shrink-0">
+              <Plus className="h-5 w-5" />
+              إضافة موظفين
+            </Button>
+          </div>
           {isLoading ? (
             <div className="p-8 grid gap-3">
               {[1, 2, 3, 4, 5].map((i) => (
@@ -414,20 +726,20 @@ export default function DeviceDetailPage() {
             <EmptyState
               icon={Users}
               title="لا يوجد موظفين على هذا الجهاز"
-              description="أضف موظفين وحدد معرف البصمة لكل منهم على هذا الجهاز"
+              description="أضف موظفين وحدد معرف البصمة لكل منهم. يمكنك لاحقاً تعديل المعرف أو حذف الربط (إزالة من الجهاز)."
               actionLabel="إضافة موظفين"
               actionIcon={Plus}
               onAction={() => setAddOpen(true)}
             />
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[720px]">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50/80">
                     <th className="text-right py-3 px-4 text-sm font-medium text-gray-600">الموظف</th>
                     <th className="text-right py-3 px-4 text-sm font-medium text-gray-600">الوظيفة</th>
                     <th className="text-right py-3 px-4 text-sm font-medium text-gray-600">معرف البصمة</th>
-                    <th className="text-right py-3 px-4 text-sm font-medium text-gray-600 w-32">إجراءات</th>
+                    <th className="text-right py-3 px-4 text-sm font-medium text-gray-600 w-36">إجراءات</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -506,6 +818,517 @@ export default function DeviceDetailPage() {
           )}
         </CardContent>
       </Card>
+      )}
+
+      {/* الحضور والانصراف */}
+      {deviceViewTab === 'attendance' && (
+      <Card
+        className="border-0 shadow-md overflow-hidden"
+        id="panel-device-attendance"
+        role="tabpanel"
+        aria-labelledby="tab-device-attendance"
+      >
+        <CardContent className="p-5 space-y-8">
+          <div className="flex items-center gap-2">
+            <Clock3 className="h-5 w-5 text-blue-600" />
+            <h2 className="text-lg font-semibold text-gray-900">الحضور والانصراف</h2>
+          </div>
+
+          <div className="space-y-4">
+            <div className="flex items-center gap-2">
+              <FileSpreadsheet className="h-5 w-5 text-emerald-600" />
+              <h3 className="text-base font-semibold text-gray-900">استيراد من Excel</h3>
+            </div>
+            <p className="text-sm text-gray-600">
+              عمودان: <span className="font-medium">رقم البصمة</span> و
+              <span className="font-medium"> التاريخ والوقت</span>. لكل يوم أول بصمة حضور وآخر بصمة انصراف مع فرق 3 ساعات؛ بصمة واحدة قبل الظهر = حضور فقط، ومن الظهر فما فوق = انصراف فقط.
+            </p>
+            <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+              <Input
+                type="file"
+                accept=".xlsx,.xls"
+                onChange={(e) => setAttendanceFile(e.target.files?.[0] ?? null)}
+                className="max-w-md"
+              />
+              <Button
+                className="gap-2 min-h-[44px]"
+                disabled={!attendanceFile || uploadAttendanceMutation.isPending}
+                onClick={() => uploadAttendanceMutation.mutate()}
+              >
+                <Upload className="h-4 w-4" />
+                {uploadAttendanceMutation.isPending ? 'جاري الرفع...' : 'رفع الملف'}
+              </Button>
+            </div>
+            {attendanceFile && (
+              <p className="text-xs text-gray-500">
+                الملف المختار: <span className="font-medium">{attendanceFile.name}</span>
+              </p>
+            )}
+          </div>
+
+          <div className="border-t border-gray-100 pt-6 space-y-3">
+            <h3 className="font-medium text-gray-900">سجل عمليات الرفع</h3>
+            <div className="rounded-xl border border-gray-200 overflow-hidden">
+              {attendanceImportsLoading ? (
+                <div className="p-4 text-sm text-gray-500">جاري تحميل سجل الرفع...</div>
+              ) : (attendanceImports ?? []).length === 0 ? (
+                <div className="p-4 text-sm text-gray-500">لا توجد عمليات رفع حتى الآن</div>
+              ) : (
+                <div className="divide-y divide-gray-100">
+                  {(attendanceImports ?? []).map((b) => (
+                    <div key={b.id} className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                      <div>
+                        <p className="font-medium text-gray-900">{b.fileName}</p>
+                        <p className="text-xs text-gray-500 mt-1">
+                          <span dir="ltr" className="tabular-nums font-mono">
+                            {formatLatinDateTime(b.createdAt)}
+                          </span>
+                          <span> · مقبول </span>
+                          <span dir="ltr" className="tabular-nums">
+                            {b.rowsAccepted}
+                          </span>
+                          <span> / مرفوض </span>
+                          <span dir="ltr" className="tabular-nums">
+                            {b.rowsRejected}
+                          </span>
+                          <span> / إجمالي </span>
+                          <span dir="ltr" className="tabular-nums">
+                            {b.rowsTotal}
+                          </span>
+                        </p>
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <span
+                          className={`text-xs px-2 py-1 rounded-full ${
+                            b.status === 'SUCCESS'
+                              ? 'bg-emerald-50 text-emerald-700'
+                              : b.status === 'PARTIAL'
+                                ? 'bg-amber-50 text-amber-700'
+                                : 'bg-rose-50 text-rose-700'
+                          }`}
+                        >
+                          {b.status}
+                        </span>
+                        {Array.isArray(b.rejections) && b.rejections.length > 0 && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            className="min-h-[40px] gap-1"
+                            onClick={() =>
+                              setImportRejectionsModal({
+                                open: true,
+                                title: `${b.fileName} — ${b.rejections!.length} بند`,
+                                items: b.rejections!,
+                              })
+                            }
+                          >
+                            <AlertCircle className="h-4 w-4 text-amber-600" />
+                            عرض الأخطاء
+                          </Button>
+                        )}
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          className="text-red-600 hover:bg-red-50 min-h-[40px]"
+                          disabled={deleteAttendanceImportMutation.isPending}
+                          onClick={() => {
+                            if (
+                              typeof window !== 'undefined' &&
+                              window.confirm('حذف عملية الرفع هذه؟ سيتم حذف سجلات الحضور/الانصراف الناتجة عنها.')
+                            ) {
+                              deleteAttendanceImportMutation.mutate(b.id);
+                            }
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4 ml-1" />
+                          حذف
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="border-t border-gray-100 pt-6 space-y-4">
+            <div className="flex items-center gap-2">
+              <ClipboardList className="h-5 w-5 text-indigo-600" />
+              <h3 className="text-base font-semibold text-gray-900">كشف الحضور والانصراف</h3>
+            </div>
+            <p className="text-sm text-gray-600">
+              يظهر <span className="font-medium">كل موظفي الجهاز النشطين</span> لكل يوم في النطاق. من دون بصمة تبقى خلايا الحضور/الانصراف فارغة. تُعرض{' '}
+              <span className="font-medium">الإجازة المعتمدة</span>، <span className="font-medium">يوم الاستراحة</span> حسب جدول الدوام،{' '}
+              <span className="font-medium">العطلة الرسمية</span> (للموظفين الصباحيين عند الانطباق)، و<span className="font-medium">وقت الاستراحة</span> من الجدول
+              في أيام العمل المتوقعة.
+            </p>
+            <div className="flex flex-col sm:flex-row flex-wrap gap-3 items-stretch sm:items-end">
+              <div className="flex rounded-lg border border-gray-200 bg-gray-50 p-1 gap-1">
+                <button
+                  type="button"
+                  className={`px-3 py-2 text-sm rounded-md min-h-[44px] transition-colors ${
+                    sheetMode === 'batch' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
+                  }`}
+                  onClick={() => setSheetMode('batch')}
+                >
+                  حسب دفعة الرفع
+                </button>
+                <button
+                  type="button"
+                  className={`px-3 py-2 text-sm rounded-md min-h-[44px] transition-colors ${
+                    sheetMode === 'range' ? 'bg-white shadow-sm text-gray-900' : 'text-gray-600'
+                  }`}
+                  onClick={() => setSheetMode('range')}
+                >
+                  حسب نطاق التاريخ
+                </button>
+              </div>
+              {sheetMode === 'batch' ? (
+                <div className="flex-1 min-w-[200px] max-w-md">
+                  <label className="block text-xs text-gray-500 mb-1">دفعة الرفع</label>
+                  <select
+                    className="w-full h-11 rounded-lg border border-gray-200 bg-white px-3 text-sm text-gray-900"
+                    value={sheetBatchId}
+                    onChange={(e) => setSheetBatchId(e.target.value)}
+                  >
+                    <option value="">— اختر —</option>
+                    {(attendanceImports ?? []).map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.fileName} ({formatLatinDateTime(b.createdAt)})
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              ) : (
+                <div className="flex flex-wrap gap-3 items-end">
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">من</label>
+                    <Input
+                      type="date"
+                      value={sheetFromDate}
+                      onChange={(e) => setSheetFromDate(e.target.value)}
+                      className="w-40"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs text-gray-500 mb-1">إلى</label>
+                    <Input
+                      type="date"
+                      value={sheetToDate}
+                      onChange={(e) => setSheetToDate(e.target.value)}
+                      className="w-40"
+                    />
+                  </div>
+                </div>
+              )}
+              <div className="flex-1 min-w-[200px] max-w-md">
+                <label className="block text-xs text-gray-500 mb-1">بحث في الكشف</label>
+                <div className="relative">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <Input
+                    value={sheetSearch}
+                    onChange={(e) => setSheetSearch(e.target.value)}
+                    placeholder="اسم الموظف، الوظيفة، القسم…"
+                    className="pr-10"
+                  />
+                </div>
+              </div>
+            </div>
+            {!sheetQueryEnabled && (
+              <p className="text-sm text-gray-500">
+                {sheetMode === 'batch'
+                  ? 'اختر دفعة رفع لعرض الكشف.'
+                  : 'حدد من تاريخ وإلى تاريخ (حد أقصى 120 يوماً).'}
+              </p>
+            )}
+            {sheetQueryEnabled && sheetLoading && (
+              <div className="text-sm text-gray-500 py-3">جاري تحميل الكشف...</div>
+            )}
+            {sheetQueryEnabled && sheetQueryError && (
+              <div className="text-sm text-rose-600 py-3">{(sheetQueryError as Error).message}</div>
+            )}
+            {sheetQueryEnabled && !sheetLoading && attendanceSheet && (
+              <p className="text-xs text-gray-500">
+                النطاق{' '}
+                <span dir="ltr" className="tabular-nums font-mono">
+                  {attendanceSheet.fromDate}
+                </span>
+                {' — '}
+                <span dir="ltr" className="tabular-nums font-mono">
+                  {attendanceSheet.toDate}
+                </span>
+                {' · '}
+                <span dir="ltr" className="tabular-nums">
+                  {attendanceSheet.employeeCount}
+                </span>{' '}
+                موظفاً ·{' '}
+                <span dir="ltr" className="tabular-nums">
+                  {attendanceSheet.rowCount}
+                </span>{' '}
+                سطراً
+              </p>
+            )}
+            {sheetQueryEnabled && !sheetLoading && attendanceSheet && attendanceSheet.rows.length === 0 && (
+              <div className="text-sm text-gray-500 py-2">لا توجد صفوف (لا موظفين نشطين على الجهاز أو نطاق فارغ).</div>
+            )}
+            {sheetQueryEnabled && !sheetLoading && attendanceSheet && attendanceSheet.rows.length > 0 && sheetFiltered.length === 0 && (
+              <div className="text-sm text-amber-700 py-2">لا توجد نتائج تطابق البحث.</div>
+            )}
+            {sheetQueryEnabled && !sheetLoading && attendanceSheet && sheetFiltered.length > 0 && (
+              <div className="overflow-x-auto border border-gray-100 rounded-xl max-h-[min(70vh,720px)] overflow-y-auto">
+                <table className="w-full min-w-[1100px] text-sm">
+                  <thead className="sticky top-0 z-[1] bg-gray-50 border-b border-gray-100 text-gray-600">
+                    <tr>
+                      <th className="text-right px-3 py-2">الموظف</th>
+                      <th className="text-right px-3 py-2">القسم</th>
+                      <th className="text-right px-3 py-2">التاريخ</th>
+                      <th className="text-right px-3 py-2">حالة اليوم</th>
+                      <th className="text-right px-3 py-2">إجازة</th>
+                      <th className="text-right px-3 py-2">عطلة</th>
+                      <th className="text-right px-3 py-2">استراحة (جدول)</th>
+                      <th className="text-right px-3 py-2">الحضور</th>
+                      <th className="text-right px-3 py-2">الانصراف</th>
+                      <th className="text-right px-3 py-2">ساعات</th>
+                      <th className="text-right px-3 py-2">ملاحظة بصمة</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sheetFiltered.map((row, idx) => (
+                      <tr key={`${row.employeeId}-${row.workDate}-${idx}`} className="border-b border-gray-50 align-top">
+                        <td className="px-3 py-2 font-medium text-gray-900">{row.fullName}</td>
+                        <td className="px-3 py-2 text-gray-600 text-xs">{row.departmentName ?? '—'}</td>
+                        <td className="px-3 py-2">
+                          <span dir="ltr" className="tabular-nums">
+                            {formatLatinDate(`${row.workDate}T12:00:00`)}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2">
+                          <span className={`text-xs px-2 py-0.5 rounded-full ${sheetDayKindClass(row.dayKind)}`}>
+                            {row.dayKindLabel}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2 text-xs text-gray-700">{row.leaveTypeName ?? '—'}</td>
+                        <td className="px-3 py-2 text-xs text-gray-700">{row.officialHolidayName ?? '—'}</td>
+                        <td className="px-3 py-2 text-xs" dir="ltr">
+                          {row.breakTimeLabel ? (
+                            <span className="tabular-nums font-mono">{row.breakTimeLabel}</span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {row.checkInAt ? (
+                            <span dir="ltr" className="tabular-nums">
+                              {formatLatinTime(row.checkInAt)}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {row.checkOutAt ? (
+                            <span dir="ltr" className="tabular-nums">
+                              {formatLatinTime(row.checkOutAt)}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="px-3 py-2">
+                          {row.workedMinutes != null ? (
+                            <span dir="ltr" className="tabular-nums">
+                              {(row.workedMinutes / 60).toFixed(2)}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="px-3 py-2 text-xs max-w-[180px]">
+                          {row.punchIsValid === false ? (
+                            <span className="text-rose-700">{row.punchNote ?? 'غير صالح'}</span>
+                          ) : row.punchNote ? (
+                            <span className="text-gray-600">{row.punchNote}</span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-gray-100 pt-6 space-y-4">
+            <h3 className="text-base font-semibold text-gray-900">سجلات الحضور والانصراف</h3>
+            <div className="flex flex-wrap items-end gap-3">
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">من تاريخ</label>
+                <Input
+                  type="date"
+                  value={recordsFromDate}
+                  onChange={(e) => setRecordsFromDate(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+              <div>
+                <label className="block text-xs text-gray-500 mb-1">إلى تاريخ</label>
+                <Input
+                  type="date"
+                  value={recordsToDate}
+                  onChange={(e) => setRecordsToDate(e.target.value)}
+                  className="w-40"
+                />
+              </div>
+              <div className="flex-1 min-w-[200px] max-w-md">
+                <label className="block text-xs text-gray-500 mb-1">بحث</label>
+                <div className="relative">
+                  <Search className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400 pointer-events-none" />
+                  <Input
+                    value={attendanceRecordSearch}
+                    onChange={(e) => setAttendanceRecordSearch(e.target.value)}
+                    placeholder="اسم الموظف، الوظيفة…"
+                    className="pr-10"
+                  />
+                </div>
+              </div>
+              <Button
+                size="sm"
+                variant="outline"
+                className="min-h-[44px]"
+                onClick={() => {
+                  setRecordsFromDate('');
+                  setRecordsToDate('');
+                  setAttendanceRecordSearch('');
+                }}
+              >
+                مسح الفلاتر والبحث
+              </Button>
+            </div>
+            {attendanceDailyLoading ? (
+              <div className="text-sm text-gray-500 py-3">جاري تحميل السجلات...</div>
+            ) : (attendanceDailyRecords ?? []).length === 0 ? (
+              <div className="text-sm text-gray-500 py-3">لا توجد سجلات حضور/انصراف لهذا الجهاز</div>
+            ) : attendanceFiltered.length === 0 ? (
+              <div className="text-sm text-amber-700 py-3">لا توجد نتائج تطابق البحث أو الفلترة الحالية.</div>
+            ) : (
+              <div className="overflow-x-auto border border-gray-100 rounded-xl">
+                <table className="w-full min-w-[860px]">
+                  <thead>
+                    <tr className="bg-gray-50 border-b border-gray-100 text-sm text-gray-600">
+                      <th className="text-right px-4 py-3">الموظف</th>
+                      <th className="text-right px-4 py-3">التاريخ</th>
+                      <th className="text-right px-4 py-3">الحضور</th>
+                      <th className="text-right px-4 py-3">الانصراف</th>
+                      <th className="text-right px-4 py-3">ساعات العمل</th>
+                      <th className="text-right px-4 py-3">ملاحظة</th>
+                      <th className="text-right px-4 py-3">مصدر الرفع</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {attendanceFiltered.map((r) => (
+                      <tr key={r.id} className="border-b border-gray-50 text-sm">
+                        <td className="px-4 py-3 font-medium text-gray-900">{r.employee.fullName}</td>
+                        <td className="px-4 py-3 text-gray-700">
+                          <span dir="ltr" className="tabular-nums">
+                            {formatLatinDate(r.workDate)}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">
+                          {r.checkInAt ? (
+                            <span dir="ltr" className="tabular-nums">
+                              {formatLatinTime(r.checkInAt)}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">
+                          {r.checkOutAt ? (
+                            <span dir="ltr" className="tabular-nums">
+                              {formatLatinTime(r.checkOutAt)}
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-gray-700">
+                          {r.workedMinutes != null ? (
+                            <span dir="ltr" className="tabular-nums">
+                              {(r.workedMinutes / 60).toFixed(2)} ساعة
+                            </span>
+                          ) : (
+                            '—'
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-600 max-w-[200px]">
+                          {!r.isValid ? (
+                            <span className="text-rose-700">{r.validationReason ?? 'غير صالح'}</span>
+                          ) : (
+                            r.validationReason ?? '—'
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-xs text-gray-500">{r.batch.fileName}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </CardContent>
+      </Card>
+      )}
+
+      <Modal
+        open={importRejectionsModal.open}
+        onClose={() => setImportRejectionsModal((s) => ({ ...s, open: false }))}
+        title={importRejectionsModal.title}
+        className="max-w-2xl max-h-[85vh] flex flex-col"
+      >
+        <p className="text-xs text-gray-500 mb-3">
+          «تنبيه» (بدل رقم صف) يعني ملاحظة على مستوى اليوم بعد تجميع البصمات، وليس صفاً من ملف Excel.
+        </p>
+        <div className="flex-1 overflow-auto border rounded-xl border-gray-200 max-h-[60vh]">
+          <table className="w-full text-sm">
+            <thead className="sticky top-0 z-[1] bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="text-right px-3 py-2 w-28">المرجع</th>
+                <th className="text-right px-3 py-2">السبب</th>
+              </tr>
+            </thead>
+            <tbody>
+              {importRejectionsModal.items.map((it, i) => (
+                <tr key={`${it.rowNumber}-${i}`} className="border-b border-gray-50 align-top">
+                  <td className="px-3 py-2 text-gray-600 whitespace-nowrap">
+                    {it.rowNumber === 0 ? (
+                      'تنبيه'
+                    ) : (
+                      <>
+                        صف{' '}
+                        <span dir="ltr" className="tabular-nums font-mono">
+                          {it.rowNumber}
+                        </span>
+                      </>
+                    )}
+                  </td>
+                  <td className="px-3 py-2 text-gray-800">{it.reason}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+        <div className="flex justify-end pt-4">
+          <Button
+            variant="outline"
+            onClick={() => setImportRejectionsModal((s) => ({ ...s, open: false }))}
+            className="min-h-[44px]"
+          >
+            إغلاق
+          </Button>
+        </div>
+      </Modal>
 
       {/* Add employees modal */}
       <Modal

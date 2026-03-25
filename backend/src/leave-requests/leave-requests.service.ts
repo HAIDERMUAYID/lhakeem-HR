@@ -17,6 +17,15 @@ function daysBetween(start: Date, end: Date): number {
   return Math.max(0, Math.round((e.getTime() - s.getTime()) / 86400000)) + 1;
 }
 
+/** مفتاح تقويم محلي YYYY-MM-DD لمقارنة التقويم مع الطلب */
+function calendarKeyLocal(d: Date): string {
+  const x = new Date(d);
+  const y = x.getFullYear();
+  const m = x.getMonth() + 1;
+  const day = x.getDate();
+  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
 const HOURS_PER_DAY = 7;
 
 function parseTimeToMinutes(t: string): number {
@@ -495,7 +504,7 @@ export class LeaveRequestsService {
             unit: { select: { id: true, name: true } },
           },
         },
-        leaveType: { select: { id: true, nameAr: true } },
+        leaveType: { select: { id: true, name: true, nameAr: true } },
       },
       orderBy: { startDate: 'asc' },
     });
@@ -804,6 +813,98 @@ export class LeaveRequestsService {
     }
 
     return updated;
+  }
+
+  /**
+   * تقصير إجازة معتمدة من يوم يظهر في التقويم: فقط إذا كان التاريخ = أول يوم أو آخر يوم في الإجازة.
+   * آخر يوم: تُنقص نهاية الإجازة بيوم واحد. أول يوم: تُزاد البداية بيوم واحد.
+   * إجازة يوم واحد: حذف الطلب كاملاً (مع إرجاع الرصيد إن انطبق).
+   */
+  async shortenLeaveAtCalendarDay(id: string, calendarDate: string) {
+    if (!calendarDate?.trim() || !/^\d{4}-\d{2}-\d{2}$/.test(calendarDate.trim())) {
+      throw new BadRequestException('calendarDate مطلوب بالتنسيق YYYY-MM-DD');
+    }
+    const cal = calendarDate.trim();
+
+    const req = await this.prisma.leaveRequest.findUnique({
+      where: { id },
+      include: { leaveType: true },
+    });
+    if (!req) throw new NotFoundException('طلب الإجازة غير موجود');
+    if (req.status !== 'APPROVED') {
+      throw new BadRequestException('يمكن تقصير الإجازات المعتمدة فقط');
+    }
+
+    // hoursCount يُملأ لمعظم الإجازات اليومية كـ daysCount×7 — لا نستخدمه لتمييز الزمنية
+    const isTemporalLeaveType =
+      /زمن/i.test(req.leaveType.nameAr || '') || /temporal|hour/i.test(req.leaveType.name || '');
+    if (isTemporalLeaveType) {
+      throw new BadRequestException('الإجازة الزمنية لا تُقصَّر من التقويم بهذه الطريقة');
+    }
+
+    let newStart = new Date(req.startDate);
+    let newEnd = new Date(req.endDate);
+    newStart.setHours(0, 0, 0, 0);
+    newEnd.setHours(0, 0, 0, 0);
+
+    const startKey = calendarKeyLocal(newStart);
+    const endKey = calendarKeyLocal(newEnd);
+
+    if (cal !== startKey && cal !== endKey) {
+      throw new BadRequestException('يُسمح بإلغاء يوم فقط عندما يكون التاريخ هو بداية الإجازة أو نهايتها');
+    }
+
+    if (startKey === endKey && cal === startKey) {
+      return this.delete(id);
+    }
+
+    if (cal === endKey) {
+      newEnd.setDate(newEnd.getDate() - 1);
+    } else {
+      newStart.setDate(newStart.getDate() + 1);
+    }
+
+    if (newStart.getTime() > newEnd.getTime()) {
+      return this.delete(id);
+    }
+
+    const newDaysCount = daysBetween(newStart, newEnd);
+    if (newDaysCount < 1) {
+      return this.delete(id);
+    }
+
+    const startForDb = new Date(newStart);
+    startForDb.setHours(0, 0, 0, 0);
+    const endForDb = new Date(newEnd);
+    endForDb.setHours(23, 59, 59, 999);
+
+    const overlap = await this.hasOverlappingApprovedLeave(req.employeeId, startForDb, endForDb, id);
+    if (overlap) {
+      throw new BadRequestException('النطاق الجديد يتداخل مع إجازة معتمدة أخرى');
+    }
+
+    const oldDays = req.daysCount;
+    const returnedDays = oldDays - newDaysCount;
+
+    await this.prisma.$transaction(async (tx) => {
+      if (req.leaveType.deductFromBalance && returnedDays > 0) {
+        await tx.employee.update({
+          where: { id: req.employeeId },
+          data: { leaveBalance: { increment: returnedDays } },
+        });
+      }
+      await tx.leaveRequest.update({
+        where: { id },
+        data: {
+          startDate: startForDb,
+          endDate: endForDb,
+          daysCount: newDaysCount,
+          hoursCount: newDaysCount * HOURS_PER_DAY,
+        },
+      });
+    });
+
+    return this.findOne(id);
   }
 
   async delete(id: string) {

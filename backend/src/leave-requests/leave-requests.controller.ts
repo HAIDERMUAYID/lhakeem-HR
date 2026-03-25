@@ -193,6 +193,16 @@ export class LeaveRequestsController {
     return this.leaveRequestsService.updateStatus(id, 'REJECTED', user.id);
   }
 
+  @Post(':id/shorten-calendar-day')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.LEAVES_APPROVE, PERMISSIONS.ADMIN)
+  async shortenCalendarDay(@Param('id') id: string, @Body() body: { calendarDate?: string }) {
+    if (!body?.calendarDate?.trim()) {
+      throw new BadRequestException('calendarDate مطلوب');
+    }
+    return this.leaveRequestsService.shortenLeaveAtCalendarDay(id, body.calendarDate.trim());
+  }
+
   @Delete(':id')
   @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.LEAVES_APPROVE, PERMISSIONS.ADMIN)

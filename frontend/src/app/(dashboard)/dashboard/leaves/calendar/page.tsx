@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import {
   ChevronRight,
@@ -14,7 +14,10 @@ import {
   Clock,
   XCircle,
 } from 'lucide-react';
-import { apiGet } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
+import { toast } from '@/hooks/use-toast';
+import { useHasPermission } from '@/hooks/use-permissions';
+import { PERMISSIONS } from '@/lib/permissions';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -36,7 +39,7 @@ type LeaveItem = {
     department?: { id: string; name: string };
     unit?: { id: string; name: string } | null;
   };
-  leaveType: { id: string; nameAr: string };
+  leaveType: { id: string; nameAr: string; name?: string };
 };
 
 const STATUS_COLORS: Record<string, string> = {
@@ -51,6 +54,23 @@ const AR_MONTHS = [
 ];
 
 const WEEKDAYS = ['أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة', 'سبت'];
+
+/** مفتاح YYYY-MM-DD محلي من تاريخ مخزَّن (متوافق مع منطق التقويم) */
+function calendarKeyFromIso(iso: string): string {
+  const d = new Date(iso);
+  d.setHours(12, 0, 0, 0);
+  const y = d.getFullYear();
+  const m = d.getMonth() + 1;
+  const day = d.getDate();
+  return `${y}-${String(m).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+
+/** إجازة زمنية بالساعات — مثل منطق الإنشاء في الخادم (لا يعتمد على hoursCount لأنه يُخزَّن لكل الأنواع) */
+function isTemporalLeaveType(l: LeaveItem): boolean {
+  const ar = l.leaveType.nameAr || '';
+  const en = l.leaveType.name || '';
+  return /زمن/i.test(ar) || /temporal|hour/i.test(en);
+}
 
 export default function LeaveCalendarPage() {
   const [date, setDate] = useState(() => {
@@ -69,6 +89,8 @@ export default function LeaveCalendarPage() {
   const [modalFiltersOpen, setModalFiltersOpen] = useState(false);
   const debouncedSearch = useDebounce(search.trim(), 300);
   const debouncedModalSearch = useDebounce(modalSearch.trim(), 300);
+  const queryClient = useQueryClient();
+  const canShortenLeave = useHasPermission([PERMISSIONS.ADMIN, PERMISSIONS.LEAVES_APPROVE]);
 
   const { data: leaves = [], isLoading } = useQuery({
     queryKey: ['leaves-calendar', date.year, date.month],
@@ -126,6 +148,21 @@ export default function LeaveCalendarPage() {
   };
 
   const selectedDayLeaves = selectedDay !== null ? getLeavesForDay(selectedDay, true) : [];
+
+  const selectedCalendarKey =
+    selectedDay !== null
+      ? `${date.year}-${String(date.month).padStart(2, '0')}-${String(selectedDay).padStart(2, '0')}`
+      : '';
+
+  const shortenLeaveMutation = useMutation({
+    mutationFn: ({ leaveId, calendarDate }: { leaveId: string; calendarDate: string }) =>
+      apiPost(`/api/leave-requests/${leaveId}/shorten-calendar-day`, { calendarDate }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leaves-calendar', date.year, date.month] });
+      toast.success('تم تحديث الإجازة');
+    },
+    onError: (e: Error) => toast.error(e.message),
+  });
 
   const filteredModalLeaves = useMemo(() => {
     if (!selectedDayLeaves.length) return [];
@@ -564,23 +601,66 @@ export default function LeaveCalendarPage() {
                   <p className="text-gray-500 py-6 text-center text-sm">لا توجد نتائج تطابق البحث أو الفلاتر</p>
                 ) : (
                   <ul className="divide-y divide-gray-100 max-h-[50vh] overflow-y-auto">
-                    {filteredModalLeaves.map((l) => (
-                      <li key={l.id} className="flex items-center gap-4 py-4 first:pt-0">
-                        <div className="h-12 w-12 rounded-xl bg-primary-100 flex items-center justify-center shrink-0">
-                          <User className="h-6 w-6 text-primary-600" />
-                        </div>
-                        <div className="min-w-0 flex-1">
-                          <p className="font-semibold text-gray-900">{l.employee.fullName}</p>
-                          <p className="text-sm text-gray-600 mt-0.5">
-                            {l.employee.jobTitle ?? '—'}
-                            {l.employee.department?.name
-                              ? ` • ${formatDeptUnit({ departmentName: l.employee.department?.name, unitName: l.employee.unit?.name })}`
-                              : ''}
-                          </p>
-                          <Badge className={`mt-1.5 ${STATUS_COLORS[l.status] || 'bg-gray-100'}`}>{l.leaveType.nameAr}</Badge>
-                        </div>
-                      </li>
-                    ))}
+                    {filteredModalLeaves.map((l) => {
+                      const startK = calendarKeyFromIso(l.startDate);
+                      const endK = calendarKeyFromIso(l.endDate);
+                      const onStart = selectedCalendarKey === startK;
+                      const onEnd = selectedCalendarKey === endK;
+                      const showShorten =
+                        canShortenLeave &&
+                        l.status === 'APPROVED' &&
+                        !isTemporalLeaveType(l) &&
+                        (onStart || onEnd);
+                      const singleDay = startK === endK;
+                      const shortenLabel = singleDay
+                        ? 'إلغاء الإجازة'
+                        : onEnd
+                          ? 'إلغاء آخر يوم'
+                          : 'إلغاء أول يوم';
+
+                      return (
+                        <li key={l.id} className="flex flex-col sm:flex-row sm:items-center gap-3 py-4 first:pt-0">
+                          <div className="flex items-center gap-4 flex-1 min-w-0">
+                            <div className="h-12 w-12 rounded-xl bg-primary-100 flex items-center justify-center shrink-0">
+                              <User className="h-6 w-6 text-primary-600" />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <p className="font-semibold text-gray-900">{l.employee.fullName}</p>
+                              <p className="text-sm text-gray-600 mt-0.5">
+                                {l.employee.jobTitle ?? '—'}
+                                {l.employee.department?.name
+                                  ? ` • ${formatDeptUnit({ departmentName: l.employee.department?.name, unitName: l.employee.unit?.name })}`
+                                  : ''}
+                              </p>
+                              <Badge className={`mt-1.5 ${STATUS_COLORS[l.status] || 'bg-gray-100'}`}>{l.leaveType.nameAr}</Badge>
+                            </div>
+                          </div>
+                          {showShorten && (
+                            <Button
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              className="shrink-0 min-h-[40px] border-rose-200 text-rose-700 hover:bg-rose-50"
+                              disabled={shortenLeaveMutation.isPending}
+                              onClick={() => {
+                                const msg = singleDay
+                                  ? 'حذف إجازة هذا اليوم بالكامل؟'
+                                  : onEnd
+                                    ? 'إلغاء آخر يوم من الإجازة وتقصير النطاق؟'
+                                    : 'إلغاء أول يوم من الإجازة وتقصير النطاق؟';
+                                if (typeof window !== 'undefined' && !window.confirm(msg)) return;
+                                shortenLeaveMutation.mutate({
+                                  leaveId: l.id,
+                                  calendarDate: selectedCalendarKey,
+                                });
+                              }}
+                            >
+                              {shortenLabel}
+                            </Button>
+                          )}
+                        </li>
+                      );
+                    })}
                   </ul>
                 )}
               </>

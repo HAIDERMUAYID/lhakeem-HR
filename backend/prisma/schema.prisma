@@ -41,6 +41,7 @@ model User {
   consolidationsApproved DailyConsolidation[]
   scheduleApprovals     WorkSchedule[]            @relation("ScheduleApprovedBy")
   leaveRequestsCreated  LeaveRequest[]            @relation("LeaveRequestCreatedBy")
+  attendanceImportBatches AttendanceImportBatch[] @relation("AttendanceImportUploadedBy")
 
   @@map("users")
 }
@@ -100,6 +101,7 @@ model Employee {
   workSchedules  WorkSchedule[]
   fingerprints   EmployeeFingerprint[]
   leaveBalanceBaselines LeaveBalanceBaseline[]
+  attendanceDailyRecords AttendanceDailyRecord[]
 
   @@index([fullName])
   @@index([departmentId, isActive])
@@ -409,6 +411,9 @@ model Device {
   updatedAt DateTime @updatedAt @map("updated_at")
 
   fingerprints EmployeeFingerprint[]
+  attendanceImportBatches AttendanceImportBatch[]
+  attendanceRawLogs AttendanceImportRawLog[]
+  attendanceDailyRecords AttendanceDailyRecord[]
 
   @@map("devices")
 }
@@ -427,4 +432,69 @@ model EmployeeFingerprint {
 
   @@unique([deviceId, fingerprintId])
   @@map("employee_fingerprints")
+}
+
+model AttendanceImportBatch {
+  id            String   @id @default(cuid())
+  deviceId      String   @map("device_id")
+  uploadedById  String?  @map("uploaded_by_id")
+  fileName      String   @map("file_name")
+  rowsTotal     Int      @default(0) @map("rows_total")
+  rowsParsed    Int      @default(0) @map("rows_parsed")
+  rowsAccepted  Int      @default(0) @map("rows_accepted")
+  rowsRejected  Int      @default(0) @map("rows_rejected")
+  status        String   @default("SUCCESS")
+  notes         String?
+  /// صفوف مرفوضة أو تحذيرات: [{ rowNumber, reason }] — rowNumber=0 ملخص يوم/مجموعة
+  rejections    Json?    @map("rejections")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  device        Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  uploadedBy    User?    @relation("AttendanceImportUploadedBy", fields: [uploadedById], references: [id], onDelete: SetNull)
+  rawLogs       AttendanceImportRawLog[]
+  dailyRecords  AttendanceDailyRecord[]
+
+  @@index([deviceId, createdAt])
+  @@map("attendance_import_batches")
+}
+
+model AttendanceImportRawLog {
+  id                String   @id @default(cuid())
+  batchId           String   @map("batch_id")
+  deviceId          String   @map("device_id")
+  deviceEmployeeCode String  @map("device_employee_code")
+  scannedAt         DateTime @map("scanned_at")
+  rowNumber         Int      @map("row_number")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  batch             AttendanceImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  device            Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([deviceId, deviceEmployeeCode, scannedAt])
+  @@map("attendance_import_raw_logs")
+}
+
+model AttendanceDailyRecord {
+  id                String   @id @default(cuid())
+  batchId           String   @map("batch_id")
+  deviceId          String   @map("device_id")
+  employeeId        String   @map("employee_id")
+  workDate          DateTime @map("work_date")
+  checkInAt         DateTime? @map("check_in_at")
+  checkOutAt        DateTime? @map("check_out_at")
+  workedMinutes     Int?     @map("worked_minutes")
+  isValid           Boolean  @default(true) @map("is_valid")
+  validationReason  String?  @map("validation_reason")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  batch             AttendanceImportBatch @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  device            Device   @relation(fields: [deviceId], references: [id], onDelete: Cascade)
+  employee          Employee @relation(fields: [employeeId], references: [id], onDelete: Cascade)
+
+  @@index([batchId])
+  @@index([deviceId, workDate, employeeId])
+  @@map("attendance_daily_records")
 }
