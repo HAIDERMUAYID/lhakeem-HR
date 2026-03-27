@@ -417,10 +417,11 @@ export default function DepartmentsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          onClick={() => openEmployees(dept)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openEmployees(dept);
+                          }}
                           className="gap-1.5 min-h-[44px]"
-                          onMouseDown={(e) => e.stopPropagation()}
-                          onClickCapture={(e) => e.stopPropagation()}
                         >
                           <Users className="h-4 w-4" />
                           {dept._count.employees} موظف
@@ -429,10 +430,11 @@ export default function DepartmentsPage() {
                           <Button
                             size="sm"
                             variant="ghost"
-                            onClick={() => openEdit(dept)}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openEdit(dept);
+                            }}
                             className="gap-1.5 text-gray-600 hover:text-primary-700 min-h-[44px]"
-                            onMouseDown={(e) => e.stopPropagation()}
-                            onClickCapture={(e) => e.stopPropagation()}
                           >
                             <Pencil className="h-4 w-4" />
                             تعديل
