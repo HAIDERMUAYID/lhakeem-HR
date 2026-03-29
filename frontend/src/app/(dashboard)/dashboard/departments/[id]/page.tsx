@@ -9,6 +9,7 @@ import {
   ArrowRight,
   Building2,
   ChevronLeft,
+  Fingerprint,
   Layers3,
   Plus,
   Pencil,
@@ -26,7 +27,10 @@ import { Input } from '@/components/ui/input';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { CanDo } from '@/components/shared/can-do';
+import { PERMISSIONS } from '@/lib/permissions';
 import { MoveEmployeesModal } from '@/components/departments/move-employees-modal';
+import { DepartmentFingerprintMigrateModal } from '@/components/departments/department-fingerprint-migrate-modal';
 import { Modal } from '@/components/ui/modal';
 import { Select } from '@/components/ui/select';
 import { apiPatch, apiPost, apiDelete } from '@/lib/api';
@@ -69,6 +73,7 @@ export default function DepartmentDetailPage() {
   const [tab, setTab] = useState<'units' | 'employees'>('units');
   const [search, setSearch] = useState('');
   const [moveOpen, setMoveOpen] = useState(false);
+  const [fingerprintMigrateOpen, setFingerprintMigrateOpen] = useState(false);
   const [selectedEmployeeIds, setSelectedEmployeeIds] = useState<Record<string, true>>({});
   const [unitAddOpen, setUnitAddOpen] = useState(false);
   const [unitEditOpen, setUnitEditOpen] = useState(false);
@@ -168,10 +173,30 @@ export default function DepartmentDetailPage() {
             <ChevronLeft className="h-4 w-4" />
             <span className="text-gray-900 font-semibold truncate max-w-[60vw]">{data?.name ?? 'تفاصيل القسم'}</span>
           </div>
-          <Button variant="outline" onClick={() => router.back()} className="gap-2">
-            <ArrowRight className="h-4 w-4" />
-            رجوع
-          </Button>
+          <div className="flex flex-wrap items-center gap-2 justify-end">
+            <CanDo
+              permission={[
+                PERMISSIONS.FINGERPRINT_OFFICER,
+                PERMISSIONS.FINGERPRINT_MANAGER,
+                PERMISSIONS.EMPLOYEES_MANAGE,
+              ]}
+            >
+              <Button
+                type="button"
+                variant="secondary"
+                className="gap-2 min-h-[44px]"
+                onClick={() => setFingerprintMigrateOpen(true)}
+                disabled={!data || employees.length === 0}
+              >
+                <Fingerprint className="h-4 w-4" />
+                ترحيل الموظفين إلى جهاز بصمة
+              </Button>
+            </CanDo>
+            <Button variant="outline" onClick={() => router.back()} className="gap-2">
+              <ArrowRight className="h-4 w-4" />
+              رجوع
+            </Button>
+          </div>
         </div>
 
         <Card className="border-0 shadow-md overflow-hidden">
@@ -371,7 +396,25 @@ export default function DepartmentDetailPage() {
                   className="bg-white border-gray-200"
                 />
               </div>
-              <div className="flex items-center gap-2 self-start sm:self-auto">
+              <div className="flex flex-wrap items-center gap-2 self-start sm:self-auto">
+                <CanDo
+                  permission={[
+                    PERMISSIONS.FINGERPRINT_OFFICER,
+                    PERMISSIONS.FINGERPRINT_MANAGER,
+                    PERMISSIONS.EMPLOYEES_MANAGE,
+                  ]}
+                >
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2 min-h-[44px]"
+                    onClick={() => setFingerprintMigrateOpen(true)}
+                    disabled={employees.length === 0}
+                  >
+                    <Fingerprint className="h-4 w-4" />
+                    ترحيل إلى جهاز بصمة
+                  </Button>
+                </CanDo>
                 {selectedIds.length > 0 && (
                   <Button className="gap-2" onClick={() => setMoveOpen(true)}>
                     نقل المحدد ({selectedIds.length})
@@ -446,6 +489,20 @@ export default function DepartmentDetailPage() {
         defaultDepartmentId={data?.id}
         onMoved={() => setSelectedEmployeeIds({})}
       />
+
+      {data && (
+        <DepartmentFingerprintMigrateModal
+          open={fingerprintMigrateOpen}
+          onClose={() => setFingerprintMigrateOpen(false)}
+          departmentId={data.id}
+          departmentName={data.name}
+          employees={employees.map((e) => ({
+            id: e.id,
+            fullName: e.fullName,
+            jobTitle: e.jobTitle,
+          }))}
+        />
+      )}
 
       <Modal open={unitAddOpen} onClose={() => setUnitAddOpen(false)} title="إضافة وحدة" className="max-w-lg">
         <form
