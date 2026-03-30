@@ -418,23 +418,19 @@ function OfficialReportPrintView({
         </tbody>
       </table>
 
-      {/* Footer — توقيع مسؤول البصمة يمين، مدير المستشفى يسار */}
+      {/* Footer — مسميات الاعتماد فقط بدون اسم/توقيع */}
       <div className="mt-12 flex justify-between gap-8 pt-8" style={{ borderTop: '2px solid #cbd5e1' }}>
         <div
           className="flex-1 text-center rounded-lg"
           style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', padding: 16 }}
         >
-          <p style={{ fontWeight: 700, color: '#334155', marginBottom: 24 }}>توقيع مسؤول وحدة البصمة</p>
-          <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: 6 }}>الاسم: _________________________</p>
-          <p style={{ fontSize: '0.85rem', color: '#475569' }}>التوقيع: _________________________</p>
+          <p style={{ fontWeight: 700, color: '#334155' }}>مسؤول وحدة البصمة</p>
         </div>
         <div
           className="flex-1 text-center rounded-lg"
           style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', padding: 16 }}
         >
-          <p style={{ fontWeight: 700, color: '#334155', marginBottom: 24 }}>توقيع مدير المستشفى / المسؤول الإداري</p>
-          <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: 6 }}>الاسم: _________________________</p>
-          <p style={{ fontSize: '0.85rem', color: '#475569' }}>التوقيع: _________________________</p>
+          <p style={{ fontWeight: 700, color: '#334155' }}>مدير المستشفى</p>
         </div>
       </div>
     </div>

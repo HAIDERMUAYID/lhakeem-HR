@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
 import { ArrowRight, Printer } from 'lucide-react';
@@ -77,6 +77,8 @@ type ReportData = {
   month: number;
   departmentId: string | null;
   departmentName: string | null;
+  unitId: string | null;
+  unitName: string | null;
   departments: DepartmentBlock[];
   schedules: ScheduleRow[];
 };
@@ -86,6 +88,7 @@ export default function OfficialScheduleReportPage() {
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
   const [departmentId, setDepartmentId] = useState<string>('');
+  const [unitId, setUnitId] = useState<string>('');
 
   const { data: scheduleDepts } = useQuery({
     queryKey: ['schedule-departments'],
@@ -97,18 +100,33 @@ export default function OfficialScheduleReportPage() {
 
   const params = new URLSearchParams({ year: String(year), month: String(month) });
   if (departmentId) params.set('departmentId', departmentId);
+  if (unitId) params.set('unitId', unitId);
+
+  const { data: unitsData } = useQuery({
+    queryKey: ['schedule-report-units', departmentId],
+    queryFn: () =>
+      apiGet<{ units: { id: string; name: string; departmentId: string; departmentName: string }[] }>(
+        `/api/work-schedules/report-units?departmentId=${departmentId}`,
+      ),
+    enabled: !!departmentId,
+  });
 
   const { data, isLoading } = useQuery({
-    queryKey: ['schedule-official-report', year, month, departmentId],
+    queryKey: ['schedule-official-report', year, month, departmentId, unitId],
     queryFn: () =>
       apiGet<ReportData>(`/api/work-schedules/official-report?${params}`),
   });
+
+  useEffect(() => {
+    setUnitId('');
+  }, [departmentId]);
 
   const handlePrint = () => {
     window.print();
   };
 
   const depts = scheduleDepts?.departments ?? [];
+  const units = unitsData?.units ?? [];
   const years = Array.from({ length: 5 }, (_, i) => now.getFullYear() - 2 + i);
   const hasData = data?.departments?.length && data.departments.some((d) => d.schedules.length > 0);
 
@@ -194,6 +212,20 @@ export default function OfficialScheduleReportPage() {
                   ))}
                 </select>
               </div>
+              <div>
+                <label className="block text-xs font-medium text-gray-500 mb-1">الوحدة</label>
+                <select
+                  value={unitId}
+                  onChange={(e) => setUnitId(e.target.value)}
+                  disabled={!departmentId}
+                  className="rounded-xl border border-gray-200 bg-white px-4 py-2 min-w-[170px] min-h-[44px] disabled:bg-gray-100 disabled:text-gray-400"
+                >
+                  <option value="">كل الوحدات</option>
+                  {units.map((u) => (
+                    <option key={u.id} value={u.id}>{u.name}</option>
+                  ))}
+                </select>
+              </div>
               <Button
                 onClick={handlePrint}
                 disabled={!hasData}
@@ -217,6 +249,9 @@ export default function OfficialScheduleReportPage() {
                     <h2 className="text-lg font-bold text-gray-900">
                       جدول الدوام الشهري – {MONTHS_AR[data.month - 1]} {data.year} – قسم {block.departmentName}
                     </h2>
+                    {data.unitName && (
+                      <p className="text-sm text-gray-700 mt-1">الوحدة: {data.unitName}</p>
+                    )}
                     <p className={`text-sm mt-1 ${(block.status ?? 'PENDING') === 'APPROVED' ? 'text-emerald-700' : 'text-amber-700'}`}>
                       {(block.status ?? 'PENDING') === 'APPROVED' ? 'حالة الجدول: معتمد' : 'حالة الجدول: معلق — للتوقيع والاعتماد'}
                     </p>
@@ -301,6 +336,11 @@ function OfficialSchedulePrintView({ data }: { data: ReportData }) {
                     <h2 style={{ fontSize: '1.2rem', fontWeight: 800, marginTop: 10, marginBottom: 2, textAlign: 'center', color: '#0f172a', borderBottom: '2px solid #334155', paddingBottom: 6 }}>
                       جدول الدوام الشهري – {MONTHS_AR[data.month - 1]} {data.year} – قسم {block.departmentName}
                     </h2>
+                    {data.unitName && (
+                      <p style={{ fontSize: '0.8rem', fontWeight: 700, textAlign: 'center', marginTop: 4, color: '#334155' }}>
+                        الوحدة: {data.unitName}
+                      </p>
+                    )}
                     <p style={{ fontSize: '0.8rem', fontWeight: 600, textAlign: 'center', marginTop: 4, color: (block.status ?? 'PENDING') === 'APPROVED' ? '#047857' : '#b45309' }}>
                       {(block.status ?? 'PENDING') === 'APPROVED' ? 'حالة الجدول: معتمد' : 'حالة الجدول: معلق — للتوقيع والاعتماد'}
                     </p>
@@ -333,17 +373,13 @@ function OfficialSchedulePrintView({ data }: { data: ReportData }) {
             </tbody>
           </table>
 
-          {/* هامش توقيع واحد فقط — بعد نهاية الجدول (حتى لو الجدول عشر صفحات) */}
+          {/* هامش اعتماد فقط — بدون اسم/توقيع */}
           <div style={{ marginTop: 32, paddingTop: 10, borderTop: '1px solid #cbd5e1', display: 'flex', justifyContent: 'space-between', gap: 16, flexWrap: 'nowrap' }}>
             <div style={{ flex: 1, minWidth: 0, textAlign: 'center', backgroundColor: '#f8fafc', border: `1px solid ${borderColor}`, borderRadius: 6, padding: '8px 10px' }}>
-              <p style={{ fontWeight: 700, color: '#334155', marginBottom: 8, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>مسؤول القسم أو الوحدة</p>
-              <p style={{ fontSize: '0.75rem', color: '#475569', marginBottom: 4, whiteSpace: 'nowrap' }}>الاسم: _________________________</p>
-              <p style={{ fontSize: '0.75rem', color: '#475569', whiteSpace: 'nowrap' }}>التوقيع: _________________________</p>
+              <p style={{ fontWeight: 700, color: '#334155', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>مسؤول القسم أو الوحدة</p>
             </div>
             <div style={{ flex: 1, minWidth: 0, textAlign: 'center', backgroundColor: '#f8fafc', border: `1px solid ${borderColor}`, borderRadius: 6, padding: '8px 10px' }}>
-              <p style={{ fontWeight: 700, color: '#334155', marginBottom: 8, fontSize: '0.8rem', whiteSpace: 'nowrap' }}>مدير المستشفى أو الإدارة</p>
-              <p style={{ fontSize: '0.75rem', color: '#475569', marginBottom: 4, whiteSpace: 'nowrap' }}>الاسم: _________________________</p>
-              <p style={{ fontSize: '0.75rem', color: '#475569', whiteSpace: 'nowrap' }}>التوقيع: _________________________</p>
+              <p style={{ fontWeight: 700, color: '#334155', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>مدير المستشفى</p>
             </div>
           </div>
         </div>

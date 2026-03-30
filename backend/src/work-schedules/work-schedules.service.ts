@@ -419,19 +419,27 @@ export class WorkSchedulesService {
     month: number,
     departmentFilter?: string | string[] | null,
     departmentIdOverride?: string,
+    unitIdOverride?: string,
   ) {
     const filter = departmentIdOverride ?? departmentFilter;
     const where: {
       year: number;
       month: number;
-      employee?: { departmentId?: string | { in: string[] } };
+      employee?: { departmentId?: string | { in: string[] }; unitId?: string };
     } = { year, month };
+    const employeeWhere: { departmentId?: string | { in: string[] }; unitId?: string } = {};
     if (filter != null) {
       if (Array.isArray(filter)) {
-        if (filter.length) where.employee = { departmentId: { in: filter } };
+        if (filter.length) employeeWhere.departmentId = { in: filter };
       } else {
-        where.employee = { departmentId: filter };
+        employeeWhere.departmentId = filter;
       }
+    }
+    if (unitIdOverride) {
+      employeeWhere.unitId = unitIdOverride;
+    }
+    if (Object.keys(employeeWhere).length > 0) {
+      where.employee = employeeWhere;
     }
 
     const rows = await this.prisma.workSchedule.findMany({
@@ -442,6 +450,7 @@ export class WorkSchedulesService {
             fullName: true,
             jobTitle: true,
             department: { select: { id: true, name: true } },
+            unit: { select: { id: true, name: true } },
             workType: true,
           },
         },
@@ -503,14 +512,58 @@ export class WorkSchedulesService {
     }
 
     const departments = Array.from(byDept.values());
+    let unitName: string | null = null;
+    if (unitIdOverride) {
+      const unit = await this.prisma.unit.findUnique({
+        where: { id: unitIdOverride },
+        select: { name: true },
+      });
+      unitName = unit?.name ?? null;
+    }
 
     return {
       year,
       month,
       departmentId: departmentIdOverride ?? null,
       departmentName: departmentIdOverride && departments.length === 1 ? departments[0].departmentName : null,
+      unitId: unitIdOverride ?? null,
+      unitName,
       departments,
       schedules: scheduleRows,
+    };
+  }
+
+  async getReportUnits(
+    departmentFilter?: string | string[] | null,
+    departmentIdOverride?: string,
+  ) {
+    const filter = departmentIdOverride ?? departmentFilter;
+    const where: { isActive: boolean; departmentId?: string | { in: string[] } } = { isActive: true };
+    if (filter != null) {
+      if (Array.isArray(filter)) {
+        if (filter.length) where.departmentId = { in: filter };
+      } else {
+        where.departmentId = filter;
+      }
+    }
+    const units = await this.prisma.unit.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        departmentId: true,
+        department: { select: { name: true } },
+      },
+      orderBy: [{ department: { name: 'asc' } }, { sortOrder: 'asc' }, { name: 'asc' }],
+    });
+
+    return {
+      units: units.map((u) => ({
+        id: u.id,
+        name: u.name,
+        departmentId: u.departmentId,
+        departmentName: u.department.name,
+      })),
     };
   }
 }

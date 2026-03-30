@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Query, Param, UseGuards, ForbiddenException } from '@nestjs/common';
+import { Controller, Get, Post, Delete, Body, Query, Param, UseGuards, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { WorkSchedulesService } from './work-schedules.service';
 import { UsersService } from '../users/users.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
@@ -134,6 +134,7 @@ export class WorkSchedulesController {
     @Query('year') yearStr: string,
     @Query('month') monthStr: string,
     @Query('departmentId') departmentId?: string,
+    @Query('unitId') unitId?: string,
     @CurrentUser() user?: { id: string; permissions?: string[] },
   ) {
     const year = parseInt(yearStr, 10);
@@ -142,7 +143,26 @@ export class WorkSchedulesController {
       throw new ForbiddenException('السنة والشهر غير صالحين');
     }
     const deptFilter = await this.getDepartmentFilter(user, departmentId);
-    return this.workSchedulesService.getOfficialReport(year, month, deptFilter, departmentId ?? undefined);
+    return this.workSchedulesService.getOfficialReport(
+      year,
+      month,
+      deptFilter,
+      departmentId ?? undefined,
+      unitId ?? undefined,
+    );
+  }
+
+  @Get('report-units')
+  @RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.SCHEDULES_VIEW, PERMISSIONS.SCHEDULES_MANAGE)
+  async getReportUnits(
+    @Query('departmentId') departmentId: string,
+    @CurrentUser() user?: { id: string; permissions?: string[] },
+  ) {
+    if (!departmentId?.trim()) {
+      throw new BadRequestException('departmentId مطلوب');
+    }
+    const deptFilter = await this.getDepartmentFilter(user, departmentId);
+    return this.workSchedulesService.getReportUnits(deptFilter, departmentId);
   }
 
   @Post('copy-from-month')
