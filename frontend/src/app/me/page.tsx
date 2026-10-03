@@ -536,7 +536,7 @@ export default function MePage() {
   const { data, isLoading, error, isFetching, refetch } = useQuery({
     queryKey: ['me-home', month],
     queryFn: () => apiGet<MeHome>(`/api/me?month=${month}`),
-    refetchInterval: 30000,
+    refetchInterval: 60000,
   });
 
   const seenKey = data ? `me-seen-punches:${data.employee.fingerprintId ?? data.employee.fullName}` : '';

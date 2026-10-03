@@ -50,6 +50,8 @@ export class DevicesService {
 
   private ingestDb: PrismaClient | null = null;
   private punchCache = new Map<string, { at: number; punches: { pin: string; scannedAt: Date; serial?: string }[] }>();
+  private punchInflight = new Map<string, Promise<{ pin: string; scannedAt: Date; serial?: string }[]>>();
+  private static readonly PUNCH_CACHE_MS = 60_000;
   private liveDayCache = new Map<string, { at: number; payload: unknown }>();
   private unmatchedCache = new Map<string, { at: number; payload: unknown }>();
   private static readonly MIN_WORK_MINUTES = 180; // 3 hours
@@ -833,13 +835,25 @@ export class DevicesService {
     return { ok: true };
   }
 
+  private ingestDatabaseUrl(): string | null {
+    const explicit = process.env.ADMS_INGEST_DATABASE_URL?.trim();
+    if (explicit) return explicit;
+    const hr = process.env.DATABASE_URL?.trim();
+    if (!hr) return null;
+    try {
+      const url = new URL(hr);
+      url.pathname = `/${process.env.ADMS_INGEST_DATABASE_NAME?.trim() || 'hospital_db_j0zf'}`;
+      return url.toString();
+    } catch {
+      return null;
+    }
+  }
+
   private ingestClient(): PrismaClient {
     if (this.ingestDb) return this.ingestDb;
-    const url = process.env.ADMS_INGEST_DATABASE_URL?.trim();
+    const url = this.ingestDatabaseUrl();
     if (!url) {
-      throw new BadRequestException(
-        'مصدر البصمة السحابي غير مضبوط. أضف ADMS_INGEST_DATABASE_URL في ملف البيئة.',
-      );
+      throw new BadRequestException('تعذر قراءة البصمات حالياً.');
     }
     this.ingestDb = new PrismaClient({ datasources: { db: { url } } });
     return this.ingestDb;
@@ -854,10 +868,39 @@ export class DevicesService {
   }): Promise<{ pin: string; scannedAt: Date; serial?: string }[]> {
     const scannedFrom = params.scannedFrom ?? params.receivedFrom;
     const scannedTo = params.scannedTo ?? params.receivedTo;
-    const cacheKey = `${params.serial ?? ''}|${scannedFrom.toISOString()}|${scannedTo.toISOString()}`;
+    const stamp = (d: Date) =>
+      `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`;
+    const cacheKey = `${params.serial ?? ''}|${stamp(scannedFrom)}|${stamp(scannedTo)}`;
     const hit = this.punchCache.get(cacheKey);
-    if (hit && Date.now() - hit.at < 15_000) return hit.punches;
+    if (hit && Date.now() - hit.at < DevicesService.PUNCH_CACHE_MS) return hit.punches;
+    const pending = this.punchInflight.get(cacheKey);
+    if (pending) return pending;
 
+    const job = this.readAdmsPunches(params, scannedFrom, scannedTo)
+      .then((punches) => {
+        this.punchCache.set(cacheKey, { at: Date.now(), punches });
+        if (this.punchCache.size > 48) {
+          const oldest = [...this.punchCache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
+          if (oldest) this.punchCache.delete(oldest[0]);
+        }
+        return punches;
+      })
+      .finally(() => {
+        this.punchInflight.delete(cacheKey);
+      });
+    this.punchInflight.set(cacheKey, job);
+    return job;
+  }
+
+  private async readAdmsPunches(
+    params: {
+      serial?: string | null;
+      receivedFrom: Date;
+      receivedTo: Date;
+    },
+    scannedFrom: Date,
+    scannedTo: Date,
+  ): Promise<{ pin: string; scannedAt: Date; serial?: string }[]> {
     const ingest = this.ingestClient();
     const serialLike = looksLikeHardwareSerial(params.serial) ? `%${params.serial}%` : '%';
     const rows = await ingest.$queryRaw<
@@ -889,11 +932,6 @@ export class DevicesService {
       }
     }
     punches.sort((a, b) => b.scannedAt.getTime() - a.scannedAt.getTime());
-    this.punchCache.set(cacheKey, { at: Date.now(), punches });
-    if (this.punchCache.size > 8) {
-      const oldest = [...this.punchCache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
-      if (oldest) this.punchCache.delete(oldest[0]);
-    }
     return punches;
   }
 
@@ -1042,6 +1080,7 @@ export class DevicesService {
     const created = await this.addFingerprint(employeeId, deviceId, fid);
     this.liveDayCache.clear();
     this.punchCache.clear();
+    this.punchInflight.clear();
     this.unmatchedCache.clear();
     return created;
   }
@@ -1144,7 +1183,7 @@ export class DevicesService {
     const rangeEnd = endOfLocalDay(rangeTo);
     const liveKey = `${deviceId}|${localDateKey(rangeFrom)}|${localDateKey(rangeTo)}`;
     const liveHit = this.liveDayCache.get(liveKey);
-    if (liveHit && Date.now() - liveHit.at < 15_000) {
+    if (liveHit && Date.now() - liveHit.at < 60_000) {
       return liveHit.payload as any;
     }
     const receivedFrom = new Date(rangeFrom.getTime() - 3 * 24 * 60 * 60 * 1000);
