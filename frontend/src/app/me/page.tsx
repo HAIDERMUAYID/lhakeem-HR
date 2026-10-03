@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useQuery } from '@tanstack/react-query';
+import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, CalendarDays, ChevronLeft, ChevronRight, Clock3, Fingerprint, LogOut, Palmtree, RefreshCw, UserRound, X } from 'lucide-react';
 import { apiGet } from '@/lib/api';
@@ -533,9 +533,10 @@ export default function MePage() {
     return () => window.clearInterval(id);
   }, []);
 
-  const { data, isLoading, error, isFetching, refetch } = useQuery({
+  const { data, isLoading, error, isFetching, isPlaceholderData, refetch } = useQuery({
     queryKey: ['me-home', month],
     queryFn: () => apiGet<MeHome>(`/api/me?month=${month}`),
+    placeholderData: keepPreviousData,
     refetchInterval: 60000,
   });
 
@@ -690,7 +691,7 @@ export default function MePage() {
         </div>
       </header>
 
-      <main className="space-y-3 px-4 pt-3">
+      <main className={`space-y-3 px-4 pt-3 transition-opacity ${isPlaceholderData ? 'opacity-60' : ''}`}>
         {isLoading && <p className="py-10 text-center text-sm text-slate-400">لحظة…</p>}
         {error && <p className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-800">تعذر فتح الصفحة. حاول التحديث.</p>}
 

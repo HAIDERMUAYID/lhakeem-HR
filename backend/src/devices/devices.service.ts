@@ -51,7 +51,16 @@ export class DevicesService {
   private ingestDb: PrismaClient | null = null;
   private punchCache = new Map<string, { at: number; punches: { pin: string; scannedAt: Date; serial?: string }[] }>();
   private punchInflight = new Map<string, Promise<{ pin: string; scannedAt: Date; serial?: string }[]>>();
+  private serialLogs = new Map<string, {
+    punches: { pin: string; scannedAt: Date; serial?: string }[];
+    coveredFrom: number;
+    coveredTo: number;
+    watermark: number;
+    at: number;
+  }>();
+  private serialFlight = new Map<string, Promise<{ pin: string; scannedAt: Date; serial?: string }[]>>();
   private static readonly PUNCH_CACHE_MS = 60_000;
+  private static readonly SERIAL_FRESH_MS = 20_000;
   private liveDayCache = new Map<string, { at: number; payload: unknown }>();
   private unmatchedCache = new Map<string, { at: number; payload: unknown }>();
   private static readonly MIN_WORK_MINUTES = 180; // 3 hours
@@ -859,6 +868,69 @@ export class DevicesService {
     return this.ingestDb;
   }
 
+  private slicePunches(
+    punches: { pin: string; scannedAt: Date; serial?: string }[],
+    from: Date,
+    to: Date,
+  ) {
+    return punches.filter((p) => p.scannedAt >= from && p.scannedAt <= to);
+  }
+
+  private async punchesFromSerial(
+    serial: string,
+    scannedFrom: Date,
+    scannedTo: Date,
+    receivedFrom: Date,
+    receivedTo: Date,
+  ) {
+    const running = this.serialFlight.get(serial);
+    if (running) await running.catch(() => undefined);
+    const state = this.serialLogs.get(serial);
+    const fresh = state
+      && Date.now() - state.at < DevicesService.SERIAL_FRESH_MS
+      && state.coveredFrom <= scannedFrom.getTime()
+      && state.coveredTo >= scannedTo.getTime();
+    if (fresh && state) return this.slicePunches(state.punches, scannedFrom, scannedTo);
+
+    const job = this.fillSerial(serial, scannedFrom, scannedTo, receivedFrom, receivedTo);
+    this.serialFlight.set(serial, job);
+    try {
+      const punches = await job;
+      return this.slicePunches(punches, scannedFrom, scannedTo);
+    } finally {
+      if (this.serialFlight.get(serial) === job) this.serialFlight.delete(serial);
+    }
+  }
+
+  private async fillSerial(
+    serial: string,
+    scannedFrom: Date,
+    scannedTo: Date,
+    receivedFrom: Date,
+    receivedTo: Date,
+  ) {
+    const state = this.serialLogs.get(serial);
+    const haveHistory = state && state.coveredFrom <= scannedFrom.getTime() && state.punches.length > 0;
+    const receivedStart = haveHistory ? new Date(state.watermark - 3 * 60 * 1000) : receivedFrom;
+    const incoming = await this.readAdmsPunches(
+      { serial, receivedFrom: receivedStart, receivedTo },
+      new Date(0),
+      new Date(864000000000000),
+    );
+    const merged = new Map<string, { pin: string; scannedAt: Date; serial?: string }>();
+    for (const punch of state?.punches ?? []) merged.set(`${punch.pin}|${punch.scannedAt.toISOString()}`, punch);
+    for (const punch of incoming) merged.set(`${punch.pin}|${punch.scannedAt.toISOString()}`, punch);
+    const punches = [...merged.values()].sort((a, b) => b.scannedAt.getTime() - a.scannedAt.getTime());
+    this.serialLogs.set(serial, {
+      punches,
+      coveredFrom: Math.min(state?.coveredFrom ?? scannedFrom.getTime(), scannedFrom.getTime()),
+      coveredTo: Math.max(state?.coveredTo ?? scannedTo.getTime(), scannedTo.getTime()),
+      watermark: Date.now(),
+      at: Date.now(),
+    });
+    return punches;
+  }
+
   private async loadAdmsPunches(params: {
     serial?: string | null;
     receivedFrom: Date;
@@ -868,6 +940,9 @@ export class DevicesService {
   }): Promise<{ pin: string; scannedAt: Date; serial?: string }[]> {
     const scannedFrom = params.scannedFrom ?? params.receivedFrom;
     const scannedTo = params.scannedTo ?? params.receivedTo;
+    if (looksLikeHardwareSerial(params.serial) && params.serial) {
+      return this.punchesFromSerial(params.serial, scannedFrom, scannedTo, params.receivedFrom, params.receivedTo);
+    }
     const stamp = (d: Date) =>
       `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}-${d.getHours()}-${d.getMinutes()}`;
     const cacheKey = `${params.serial ?? ''}|${stamp(scannedFrom)}|${stamp(scannedTo)}`;
@@ -1081,6 +1156,8 @@ export class DevicesService {
     this.liveDayCache.clear();
     this.punchCache.clear();
     this.punchInflight.clear();
+    this.serialLogs.clear();
+    this.serialFlight.clear();
     this.unmatchedCache.clear();
     return created;
   }

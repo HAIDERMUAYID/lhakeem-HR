@@ -66,7 +66,7 @@ export class MeService {
         return [];
       }
     };
-    const mine = (await loadPunches(historyFrom, to)).sort((a, b) => b.scannedAt.getTime() - a.scannedAt.getTime());
+    const mine = (await loadPunches(from, to)).sort((a, b) => b.scannedAt.getTime() - a.scannedAt.getTime());
 
     const toDaily = (
       punches: { pin: string; scannedAt: Date }[],
