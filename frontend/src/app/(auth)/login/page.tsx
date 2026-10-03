@@ -82,7 +82,8 @@ export default function LoginPage() {
         localStorage.setItem('user', JSON.stringify(result.user || {}));
         document.cookie = `token=${result.access_token}; path=/; max-age=604800`;
       }
-      router.push('/dashboard');
+      const perms: string[] = result.user?.permissions ?? [];
+      router.push(result.user?.employeeId && perms.length === 0 ? '/me' : '/dashboard');
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'حدث خطأ';
       setApiError(msg === 'Failed to fetch' ? 'تعذر الاتصال بالخادم - تأكد من تشغيل الخدمة الخلفية (Backend) على المنفذ 3001' : msg);

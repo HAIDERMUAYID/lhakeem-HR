@@ -33,6 +33,16 @@ export class DevicesController {
     return this.devicesService.getStats();
   }
 
+  @Get('adms-inbox')
+  async listAdmsInbox() {
+    return this.devicesService.listAdmsInbox();
+  }
+
+  @Get('department-options')
+  async departmentOptions() {
+    return this.devicesService.listDepartmentOptions();
+  }
+
   @Get()
   async findAll(
     @Query('search') search?: string,
@@ -66,6 +76,72 @@ export class DevicesController {
     @Query('toDate') toDate?: string,
   ) {
     return this.devicesService.listAttendanceDailyRecords(id, fromDate, toDate);
+  }
+
+  @Get(':id/unmatched-pins')
+  async listUnmatchedPins(
+    @Param('id') id: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    return this.devicesService.listUnmatchedPins(id, fromDate, toDate);
+  }
+
+  @Get(':id/live-day')
+  async getLiveDay(
+    @Param('id') id: string,
+    @Query('date') date?: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    return this.devicesService.getLiveDay(id, fromDate || date, toDate || date);
+  }
+
+  @Post(':id/department')
+  async setDeviceDepartment(@Param('id') id: string, @Body() body: { departmentId?: string }) {
+    if (!body?.departmentId?.trim()) throw new BadRequestException('القسم مطلوب');
+    return this.devicesService.setDeviceDepartment(id, body.departmentId);
+  }
+
+  @Post(':id/assign-pin')
+  async assignPin(
+    @Param('id') id: string,
+    @Body() body: { fingerprintId?: string; employeeId?: string; moveToDepartment?: boolean },
+  ) {
+    if (!body?.fingerprintId?.trim() || !body?.employeeId?.trim()) {
+      throw new BadRequestException('المعرف والموظف مطلوبان');
+    }
+    return this.devicesService.assignPin(
+      id,
+      body.fingerprintId,
+      body.employeeId,
+      Boolean(body.moveToDepartment),
+    );
+  }
+
+  @Post(':id/bind-serial')
+  async bindSerial(@Param('id') id: string, @Body() body: { serial?: string }) {
+    if (!body?.serial?.trim()) throw new BadRequestException('الرقم التسلسلي مطلوب');
+    return this.devicesService.bindSerial(id, body.serial);
+  }
+
+  @Get(':id/live-attendance')
+  async getLiveAttendance(
+    @Param('id') id: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+  ) {
+    return this.devicesService.getLiveAttendance(id, fromDate, toDate);
+  }
+
+  @Post(':id/sync-adms')
+  async syncAdmsAttendance(
+    @Param('id') id: string,
+    @Query('fromDate') fromDate?: string,
+    @Query('toDate') toDate?: string,
+    @CurrentUser() user?: { id: string },
+  ) {
+    return this.devicesService.syncAdmsAttendance(id, user?.id, fromDate, toDate);
   }
 
   @Get(':id/attendance-sheet')

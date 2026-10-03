@@ -24,6 +24,7 @@ import {
   PanelLeftOpen,
   Fingerprint,
   KeyRound,
+  Clock3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppLogo } from './app-logo';
@@ -49,6 +50,7 @@ const navSections: { title: string; items: NavItem[] }[] = [
     title: 'البصمة والغيابات',
     items: [
       { href: '/dashboard/devices', label: 'أجهزة البصمة', icon: Fingerprint, permission: ['FINGERPRINT_OFFICER', 'FINGERPRINT_MANAGER', 'DEPARTMENTS_MANAGE'] },
+      { href: '/dashboard/attendance', label: 'الحضور والانصراف', icon: Clock3, permission: ['FINGERPRINT_OFFICER', 'FINGERPRINT_MANAGER', 'DEPARTMENTS_MANAGE'] },
       { href: '/dashboard/fingerprint-calendar', label: 'تقويم وحدة البصمة', icon: CalendarDays, permission: ['FINGERPRINT_OFFICER', 'FINGERPRINT_MANAGER', 'DEPARTMENTS_MANAGE'] },
       { href: '/dashboard/absences', label: 'الغيابات', icon: UserX, permission: ['FINGERPRINT_OFFICER', 'FINGERPRINT_MANAGER'] },
     ],

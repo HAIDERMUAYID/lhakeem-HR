@@ -23,6 +23,7 @@ const routeLabels: Record<string, string> = {
   'data-completion': 'إكمال البيانات',
   imports: 'الاستيراد',
   devices: 'أجهزة البصمة',
+  attendance: 'الحضور والانصراف',
   'fingerprint-calendar': 'تقويم البصمة',
   'change-password': 'تغيير كلمة المرور',
   day: 'يوم',

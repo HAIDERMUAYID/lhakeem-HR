@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UserRole } from '@prisma/client';
 import * as bcrypt from 'bcrypt';
@@ -42,6 +42,7 @@ export class UsersService {
         role: true,
         permissions: true,
         isActive: true,
+        employeeId: true,
         departmentId: true,
         department: { select: { id: true, name: true } },
         fingerprintDepartments: { select: { departmentId: true, department: { select: { id: true, name: true } } } },
@@ -77,6 +78,8 @@ export class UsersService {
         role: true,
         permissions: true,
         departmentId: true,
+        employeeId: true,
+        employee: { select: { fullName: true } },
         department: { select: { name: true } },
         fingerprintDepartments: { select: { departmentId: true, department: { select: { id: true, name: true } } } },
       },
@@ -156,6 +159,43 @@ export class UsersService {
       });
     }
     return user;
+  }
+
+  async searchEmployeesForPortal(search: string) {
+    const q = search.trim();
+    if (q.length < 2) return [];
+    return this.prisma.employee.findMany({
+      where: { isActive: true, fullName: { contains: q, mode: 'insensitive' } },
+      select: {
+        id: true,
+        fullName: true,
+        jobTitle: true,
+        department: { select: { name: true } },
+        portalUser: { select: { username: true } },
+      },
+      orderBy: { fullName: 'asc' },
+      take: 12,
+    });
+  }
+
+  async createEmployeeAccount(data: { username: string; password: string; employeeId: string }) {
+    const employee = await this.prisma.employee.findUnique({ where: { id: data.employeeId } });
+    if (!employee?.isActive) throw new BadRequestException('الموظف غير موجود');
+    const linked = await this.prisma.user.findUnique({ where: { employeeId: employee.id } });
+    if (linked) throw new ConflictException('لهذا الموظف حساب مسبقاً');
+    const passwordHash = await bcrypt.hash(data.password, 10);
+    return this.prisma.user.create({
+      data: {
+        username: data.username.trim(),
+        passwordHash,
+        name: employee.fullName,
+        role: 'MANAGER',
+        permissions: [],
+        employeeId: employee.id,
+        isActive: true,
+      },
+      select: { id: true, username: true, name: true, employeeId: true },
+    });
   }
 
   async findByIdWithPassword(id: string) {

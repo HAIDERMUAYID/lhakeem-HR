@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Put, Delete, Body, Param, UseGuards, ConflictException } from '@nestjs/common';
+import { Controller, Get, Post, Put, Delete, Body, Param, Query, UseGuards, ConflictException, BadRequestException } from '@nestjs/common';
 import { IsString, IsOptional, IsArray, MinLength, IsEnum, ValidateIf } from 'class-validator';
 import { UserRole } from '@prisma/client';
 import { UsersService } from './users.service';
@@ -119,6 +119,30 @@ export class UsersController {
   @Get('me/schedule-departments')
   async getMyScheduleDepartments(@CurrentUser() user: { id: string; permissions?: string[] }) {
     return this.usersService.getScheduleDepartmentsForUser(user.id, user.permissions);
+  }
+
+  @Get('employee-lookup')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
+  async employeeLookup(@Query('search') search = '') {
+    return this.usersService.searchEmployeesForPortal(search);
+  }
+
+  @Post('employee-account')
+  @UseGuards(PermissionsGuard)
+  @RequirePermissions(PERMISSIONS.USERS_MANAGE)
+  async createEmployeeAccount(
+    @Body() body: { username?: string; password?: string; employeeId?: string },
+  ) {
+    const username = body.username?.trim() ?? '';
+    const password = body.password ?? '';
+    const employeeId = body.employeeId?.trim() ?? '';
+    if (username.length < 2) throw new BadRequestException('اسم الدخول حرفان على الأقل');
+    if (password.length < 6) throw new BadRequestException('كلمة المرور 6 أحرف على الأقل');
+    if (!employeeId) throw new BadRequestException('اختر الموظف من الاسم');
+    const existing = await this.usersService.findByLogin(username);
+    if (existing) throw new ConflictException('اسم الدخول مستخدم مسبقاً');
+    return this.usersService.createEmployeeAccount({ username, password, employeeId });
   }
 
   @Get()

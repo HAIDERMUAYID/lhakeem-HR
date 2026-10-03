@@ -113,6 +113,7 @@ export class AuthService {
         role: user.role,
         permissions: user.permissions ?? [],
         departmentId: user.departmentId,
+        employeeId: user.employeeId ?? null,
       },
     };
   }

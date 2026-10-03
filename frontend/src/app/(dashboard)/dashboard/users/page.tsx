@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import { useDebounce } from '@/hooks/use-debounce';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'framer-motion';
 import { UserCog, Shield, UserPlus, Pencil, Trash2 } from 'lucide-react';
@@ -29,6 +30,8 @@ type User = {
   department?: { name: string };
   assignedDepartmentIds?: string[];
   assignedDepartments?: { id: string; name: string }[];
+  employeeId?: string | null;
+  employee?: { fullName: string } | null;
 };
 
 const PERMISSION_LABELS: Record<string, string> = {
@@ -78,6 +81,12 @@ export default function UsersPage() {
   const [editOpen, setEditOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [createOpen, setCreateOpen] = useState(false);
+  const [portalOpen, setPortalOpen] = useState(false);
+  const [portalSearch, setPortalSearch] = useState('');
+  const [portalEmployee, setPortalEmployee] = useState<{ id: string; fullName: string } | null>(null);
+  const [portalUsername, setPortalUsername] = useState('');
+  const [portalPassword, setPortalPassword] = useState('');
+  const debouncedPortalSearch = useDebounce(portalSearch, 300);
   const [selectedUser, setSelectedUser] = useState<User | null>(null);
   const [selectedPerms, setSelectedPerms] = useState<string[]>([]);
   const [selectedDeptIds, setSelectedDeptIds] = useState<string[]>([]);
@@ -104,6 +113,15 @@ export default function UsersPage() {
   const { data: users = [], isLoading, error, refetch } = useQuery({
     queryKey: ['users'],
     queryFn: () => apiGet<User[]>('/api/users'),
+  });
+
+  const { data: portalHits = [] } = useQuery({
+    queryKey: ['employee-portal-lookup', debouncedPortalSearch],
+    enabled: portalOpen && debouncedPortalSearch.trim().length >= 2,
+    queryFn: () =>
+      apiGet<{ id: string; fullName: string; jobTitle: string; department: { name: string }; portalUser: { username: string | null } | null }[]>(
+        `/api/users/employee-lookup?search=${encodeURIComponent(debouncedPortalSearch.trim())}`,
+      ),
   });
 
   const { data: departments = [] } = useQuery({
@@ -147,6 +165,25 @@ export default function UsersPage() {
         departmentId: '',
       });
       toast.success('تم إضافة المستخدم. يمكنك تعيين الصلاحيات من زر "الصلاحيات".');
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const portalMutation = useMutation({
+    mutationFn: () =>
+      apiPost('/api/users/employee-account', {
+        username: portalUsername.trim(),
+        password: portalPassword,
+        employeeId: portalEmployee?.id,
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+      setPortalOpen(false);
+      setPortalSearch('');
+      setPortalEmployee(null);
+      setPortalUsername('');
+      setPortalPassword('');
+      toast.success('تم إنشاء حساب الموظف وربطه باسمه');
     },
     onError: (err: Error) => toast.error(err.message),
   });
@@ -267,6 +304,10 @@ export default function UsersPage() {
           <p className="text-gray-500 mt-1">إدارة المستخدمين وصلاحياتهم</p>
         </div>
         <CanDo permission="USERS_MANAGE">
+          <Button variant="secondary" onClick={() => setPortalOpen(true)} className="gap-2">
+            <UserPlus className="h-4 w-4" />
+            حساب موظف
+          </Button>
           <Button onClick={() => setCreateOpen(true)} className="gap-2">
             <UserPlus className="h-4 w-4" />
             إضافة مستخدم
@@ -310,7 +351,9 @@ export default function UsersPage() {
                       <p className="font-semibold text-gray-900">{user.name}</p>
                       <p className="text-sm text-gray-500">{user.username || user.email || '—'}</p>
                       <p className="text-xs text-gray-400 mt-0.5">
-                        {roleLabels[user.role] || user.role} • {user.department?.name ?? '-'}
+                        {user.employeeId ? 'حساب موظف' : roleLabels[user.role] || user.role}
+                        {user.employee?.fullName ? ` · ${user.employee.fullName}` : ''}
+                        {!user.employeeId ? ` • ${user.department?.name ?? '-'}` : ''}
                       </p>
                     </div>
                   </div>
@@ -333,10 +376,12 @@ export default function UsersPage() {
                         <Pencil className="h-4 w-4" />
                         تعديل
                       </Button>
+                      {!user.employeeId && (
                       <Button variant="secondary" size="sm" onClick={() => openEdit(user)} className="gap-1.5 min-h-[44px]">
                         <Shield className="h-4 w-4" />
                         الصلاحيات
                       </Button>
+                      )}
                       <Button
                         variant="secondary"
                         size="sm"
@@ -355,6 +400,67 @@ export default function UsersPage() {
           )}
         </CardContent>
       </Card>
+
+      <Modal
+        open={portalOpen}
+        onClose={() => setPortalOpen(false)}
+        title="حساب موظف"
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-gray-600">اختر الموظف من اسمه في السجل. الحساب بلا صلاحيات إدارية، ويرى دوامه وإجازاته فقط.</p>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">اسم الموظف</label>
+            <Input
+              value={portalSearch}
+              onChange={(e) => {
+                setPortalSearch(e.target.value);
+                setPortalEmployee(null);
+              }}
+              placeholder="اكتب حرفين من الاسم"
+            />
+            {portalEmployee && (
+              <p className="mt-2 text-sm font-medium text-primary-800">المربوط: {portalEmployee.fullName}</p>
+            )}
+            <div className="mt-2 max-h-48 space-y-1 overflow-y-auto">
+              {portalHits.map((hit) => (
+                <button
+                  key={hit.id}
+                  type="button"
+                  disabled={Boolean(hit.portalUser)}
+                  onClick={() => {
+                    setPortalEmployee({ id: hit.id, fullName: hit.fullName });
+                    setPortalSearch(hit.fullName);
+                  }}
+                  className="w-full rounded-xl px-3 py-2 text-right text-sm hover:bg-gray-50 disabled:opacity-50"
+                >
+                  <div className="font-medium">{hit.fullName}</div>
+                  <div className="text-xs text-gray-500">
+                    {hit.jobTitle} · {hit.department.name}
+                    {hit.portalUser ? ' · له حساب' : ''}
+                  </div>
+                </button>
+              ))}
+            </div>
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">اسم الدخول</label>
+            <Input value={portalUsername} onChange={(e) => setPortalUsername(e.target.value)} dir="ltr" placeholder="مثال: ahmed" />
+          </div>
+          <div>
+            <label className="mb-1 block text-sm font-medium text-gray-700">كلمة المرور</label>
+            <Input type="password" value={portalPassword} onChange={(e) => setPortalPassword(e.target.value)} placeholder="6 أحرف على الأقل" />
+          </div>
+          <div className="flex gap-2 border-t border-gray-100 pt-4">
+            <Button
+              disabled={portalMutation.isPending || !portalEmployee || portalUsername.trim().length < 2 || portalPassword.length < 6}
+              onClick={() => portalMutation.mutate()}
+            >
+              {portalMutation.isPending ? 'جاري الإنشاء…' : 'إنشاء الحساب'}
+            </Button>
+            <Button variant="secondary" onClick={() => setPortalOpen(false)}>إلغاء</Button>
+          </div>
+        </div>
+      </Modal>
 
       <Modal
         open={createOpen}

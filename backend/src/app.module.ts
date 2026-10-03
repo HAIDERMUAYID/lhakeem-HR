@@ -21,6 +21,7 @@ import { DevicesModule } from './devices/devices.module';
 import { FingerprintCalendarModule } from './fingerprint-calendar/fingerprint-calendar.module';
 import { HealthModule } from './health/health.module';
 import { UnitsModule } from './units/units.module';
+import { MeModule } from './me/me.module';
 
 @Module({
   imports: [
@@ -43,6 +44,7 @@ import { UnitsModule } from './units/units.module';
     AbsenceReportsModule,
     DevicesModule,
     FingerprintCalendarModule,
+    MeModule,
   ],
   providers: [
     PermissionsGuard,

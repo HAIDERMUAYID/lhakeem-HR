@@ -348,11 +348,11 @@ export default function DevicesPage() {
             />
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1.5">الكود (اختياري)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1.5">الرقم التسلسلي SN (اختياري)</label>
             <Input
               value={addForm.code}
               onChange={(e) => setAddForm((f) => ({ ...f, code: e.target.value }))}
-              placeholder="مثال: ADM-01"
+              placeholder="مثال: AF5B231160515"
             />
           </div>
           <div>
@@ -417,7 +417,7 @@ export default function DevicesPage() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1.5">الكود (اختياري)</label>
+              <label className="block text-sm font-medium text-gray-700 mb-1.5">الرقم التسلسلي SN (اختياري)</label>
               <Input
                 value={editForm.code}
                 onChange={(e) => setEditForm((f) => ({ ...f, code: e.target.value }))}

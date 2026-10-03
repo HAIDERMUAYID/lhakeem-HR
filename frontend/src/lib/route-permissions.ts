@@ -19,6 +19,7 @@ const ROUTE_PERMISSION_MAP: { path: string; permission: RoutePermission }[] = [
   { path: '/dashboard/imports', permission: PERMISSIONS.EMPLOYEES_MANAGE },
   { path: '/dashboard/departments', permission: PERMISSIONS.DEPARTMENTS_MANAGE },
   { path: '/dashboard/devices', permission: [PERMISSIONS.FINGERPRINT_OFFICER, PERMISSIONS.FINGERPRINT_MANAGER, PERMISSIONS.DEPARTMENTS_MANAGE] },
+  { path: '/dashboard/attendance', permission: [PERMISSIONS.FINGERPRINT_OFFICER, PERMISSIONS.FINGERPRINT_MANAGER, PERMISSIONS.DEPARTMENTS_MANAGE] },
   { path: '/dashboard/fingerprint-calendar', permission: [PERMISSIONS.FINGERPRINT_OFFICER, PERMISSIONS.FINGERPRINT_MANAGER, PERMISSIONS.DEPARTMENTS_MANAGE] },
   { path: '/dashboard/leaves', permission: PERMISSIONS.LEAVES_VIEW },
   { path: '/dashboard/leave-types', permission: PERMISSIONS.LEAVE_TYPES_MANAGE },

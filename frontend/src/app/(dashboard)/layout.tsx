@@ -12,7 +12,7 @@ import { canAccessPath } from '@/lib/route-permissions';
 
 const SIDEBAR_STORAGE_KEY = 'sidebar-collapsed';
 
-type UserState = { name?: string; permissions?: string[] } | null;
+type UserState = { name?: string; permissions?: string[]; employeeId?: string | null } | null;
 
 export default function DashboardLayout({
   children,
@@ -50,7 +50,12 @@ export default function DashboardLayout({
     }
     if (userStr) {
       try {
-        setUser(JSON.parse(userStr));
+        const parsed = JSON.parse(userStr);
+        if (parsed?.employeeId && !(parsed.permissions ?? []).length) {
+          router.replace('/me');
+          return;
+        }
+        setUser(parsed);
       } catch {
         setUser(null);
       }
