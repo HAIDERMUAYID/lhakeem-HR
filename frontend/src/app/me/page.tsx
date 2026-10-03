@@ -537,7 +537,7 @@ export default function MePage() {
     queryKey: ['me-home', month],
     queryFn: () => apiGet<MeHome>(`/api/me?month=${month}`),
     placeholderData: keepPreviousData,
-    refetchInterval: 60000,
+    refetchInterval: 15000,
   });
 
   const seenKey = data ? `me-seen-punches:${data.employee.fingerprintId ?? data.employee.fullName}` : '';

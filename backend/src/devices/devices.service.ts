@@ -60,7 +60,7 @@ export class DevicesService {
   }>();
   private serialFlight = new Map<string, Promise<{ pin: string; scannedAt: Date; serial?: string }[]>>();
   private static readonly PUNCH_CACHE_MS = 60_000;
-  private static readonly SERIAL_FRESH_MS = 20_000;
+  private static readonly SERIAL_FRESH_MS = 8_000;
   private liveDayCache = new Map<string, { at: number; payload: unknown }>();
   private unmatchedCache = new Map<string, { at: number; payload: unknown }>();
   private static readonly MIN_WORK_MINUTES = 180; // 3 hours
@@ -910,13 +910,14 @@ export class DevicesService {
     receivedTo: Date,
   ) {
     const state = this.serialLogs.get(serial);
-    const haveHistory = state && state.coveredFrom <= scannedFrom.getTime() && state.punches.length > 0;
-    const receivedStart = haveHistory ? new Date(state.watermark - 3 * 60 * 1000) : receivedFrom;
-    const incoming = await this.readAdmsPunches(
-      { serial, receivedFrom: receivedStart, receivedTo },
-      new Date(0),
-      new Date(864000000000000),
-    );
+    const haveHistory = Boolean(state && state.coveredFrom <= scannedFrom.getTime() && state.punches.length > 0);
+    const incoming = haveHistory
+      ? await this.readRecentAdmsPunches(serial)
+      : await this.readAdmsPunches(
+          { serial, receivedFrom, receivedTo },
+          new Date(0),
+          new Date(864000000000000),
+        );
     const merged = new Map<string, { pin: string; scannedAt: Date; serial?: string }>();
     for (const punch of state?.punches ?? []) merged.set(`${punch.pin}|${punch.scannedAt.toISOString()}`, punch);
     for (const punch of incoming) merged.set(`${punch.pin}|${punch.scannedAt.toISOString()}`, punch);
@@ -1007,6 +1008,42 @@ export class DevicesService {
       }
     }
     punches.sort((a, b) => b.scannedAt.getTime() - a.scannedAt.getTime());
+    return punches;
+  }
+
+  private readRecentAdmsPunches(serial: string) {
+    return this.readAdmsPunchesSince(serial, `NOW() - INTERVAL '6 hours'`);
+  }
+
+  private async readAdmsPunchesSince(serial: string, sinceSql: string) {
+    const ingest = this.ingestClient();
+    const serialLike = `%${serial}%`;
+    const rows = await ingest.$queryRawUnsafe<
+      { body: string; raw_query: string | null }[]
+    >(
+      `SELECT convert_from(coalesce(body_bytes, ''::bytea), 'UTF8') AS body, raw_query
+       FROM ingest.raw_ingress_requests
+       WHERE method = 'POST'
+         AND raw_path = '/iclock/cdata'
+         AND coalesce(safe_headers->>'user-agent', '') ILIKE '%iClock%'
+         AND coalesce(raw_query, '') ILIKE $1
+         AND received_at >= ${sinceSql}
+         AND received_at <= NOW() + INTERVAL '5 minutes'
+       ORDER BY received_at ASC`,
+      serialLike,
+    );
+    const punches: { pin: string; scannedAt: Date; serial?: string }[] = [];
+    const seen = new Set<string>();
+    for (const row of rows) {
+      const rowSerial = serialFromQuery(row.raw_query);
+      if (rowSerial && rowSerial !== serial) continue;
+      for (const punch of parseAttlogBody(row.body || '')) {
+        const key = `${punch.pin}|${punch.scannedAt.toISOString()}`;
+        if (seen.has(key)) continue;
+        seen.add(key);
+        punches.push({ ...punch, serial });
+      }
+    }
     return punches;
   }
 
@@ -1260,7 +1297,7 @@ export class DevicesService {
     const rangeEnd = endOfLocalDay(rangeTo);
     const liveKey = `${deviceId}|${localDateKey(rangeFrom)}|${localDateKey(rangeTo)}`;
     const liveHit = this.liveDayCache.get(liveKey);
-    if (liveHit && Date.now() - liveHit.at < 60_000) {
+    if (liveHit && Date.now() - liveHit.at < 10_000) {
       return liveHit.payload as any;
     }
     const receivedFrom = new Date(rangeFrom.getTime() - 3 * 24 * 60 * 60 * 1000);
