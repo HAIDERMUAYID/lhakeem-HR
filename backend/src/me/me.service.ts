@@ -56,14 +56,17 @@ export class MeService {
 
     const pins = employee.fingerprints.map((f) => f.fingerprintId);
     const serials = [...new Set(employee.fingerprints.map((f) => f.device.code).filter(Boolean))];
-    const punchLists = await Promise.all(
-      serials.map((serial) => this.devices.punchesOnSerial(serial, historyFrom, to)),
-    );
     const pinSet = new Set(pins);
-    const mine = punchLists
-      .flat()
-      .filter((p) => pinSet.has(p.pin))
-      .sort((a, b) => b.scannedAt.getTime() - a.scannedAt.getTime());
+    const loadPunches = async (from: Date, until: Date) => {
+      if (!serials.length) return [];
+      try {
+        const lists = await Promise.all(serials.map((serial) => this.devices.punchesOnSerial(serial, from, until)));
+        return lists.flat().filter((p) => pinSet.has(p.pin));
+      } catch {
+        return [];
+      }
+    };
+    const mine = (await loadPunches(historyFrom, to)).sort((a, b) => b.scannedAt.getTime() - a.scannedAt.getTime());
 
     const toDaily = (
       punches: { pin: string; scannedAt: Date }[],
@@ -79,11 +82,7 @@ export class MeService {
     const todayEnd = endOfLocalDay(now);
     let horizonDaily = daily;
     if ((yesterday < historyFrom || todayEnd > to) && serials.length) {
-      const extra = (
-        await Promise.all(serials.map((serial) => this.devices.punchesOnSerial(serial, yesterday, todayEnd)))
-      )
-        .flat()
-        .filter((p) => pinSet.has(p.pin));
+      const extra = await loadPunches(yesterday, todayEnd);
       horizonDaily = new Map(daily);
       for (const [key, row] of toDaily(extra)) horizonDaily.set(key, row);
     }

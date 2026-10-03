@@ -692,7 +692,7 @@ export default function MePage() {
 
       <main className="space-y-3 px-4 pt-3">
         {isLoading && <p className="py-10 text-center text-sm text-slate-400">لحظة…</p>}
-        {error && <p className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-800">{(error as Error).message}</p>}
+        {error && <p className="rounded-2xl bg-rose-50 p-3 text-sm text-rose-800">تعذر فتح الصفحة. حاول التحديث.</p>}
 
         <AnimatePresence mode="wait">
           {data && tab === 'today' && (
