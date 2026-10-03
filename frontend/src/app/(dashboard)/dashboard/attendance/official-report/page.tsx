@@ -35,7 +35,8 @@ function OfficialReportInner() {
   const deviceId = params.get('deviceId') || '';
   const fromDate = params.get('from') || '';
   const toDate = params.get('to') || '';
-  const status = isStatus(params.get('status')) ? params.get('status')! : 'all';
+  const statusParam = params.get('status');
+  const status: AttendanceStatusFilter = isStatus(statusParam) ? statusParam : 'all';
   const name = params.get('name') || '';
   const department = params.get('department') || '';
   const unit = params.get('unit') || '';
