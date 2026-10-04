@@ -39,7 +39,7 @@ function duration(mins: number | null | undefined) {
 function duty(row: AttendancePrintRow) {
   if (row.status === 'REST' || row.status === 'LEAVE' || row.status === 'HOLIDAY') return '';
   if (!row.scheduledStart || !row.scheduledEnd) return '';
-  return `${clockFrom24(row.scheduledStart)} – ${clockFrom24(row.scheduledEnd)}`;
+  return `${clockFrom24(row.scheduledStart, 'mark')} – ${clockFrom24(row.scheduledEnd, 'mark')}`;
 }
 
 function issuedAt() {
@@ -83,8 +83,8 @@ export function printAttendanceSheet(input: {
         row.employeeName,
         row.unitName || '',
         duty(row),
-        row.checkInAt ? hospitalClock(row.checkInAt) : '',
-        row.checkOutAt ? hospitalClock(row.checkOutAt) : '',
+        row.checkInAt ? hospitalClock(row.checkInAt, false, 'mark') : '',
+        row.checkOutAt ? hospitalClock(row.checkOutAt, false, 'mark') : '',
         duration(row.expectedMinutes),
         duration(row.workedMinutes),
         duration(row.lateMinutes),
@@ -104,82 +104,66 @@ export function printAttendanceSheet(input: {
   <style>
     @font-face { font-family: Amiri; src: url('${origin}/fonts/Amiri-Regular.ttf') format('truetype'); font-weight: 400; }
     @font-face { font-family: Amiri; src: url('${origin}/fonts/Amiri-Bold.ttf') format('truetype'); font-weight: 700; }
-    @page { size: A4 landscape; margin: 8mm 10mm 12mm; }
-    * { box-sizing: border-box; }
-    body { margin: 0; color: #111; background: #fff; font-family: Amiri, 'Geeza Pro', Tahoma, serif; }
-    .frame { border: 2.5px solid #111; padding: 10px 12px 8px; }
-    .head { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-    .head img { width: 72px; height: 72px; object-fit: contain; }
-    .identity { flex: 1; text-align: center; }
-    .identity .state { font-size: 13px; font-weight: 700; }
-    .identity .ministry { margin-top: 2px; font-size: 22px; font-weight: 700; }
-    .identity .dept { margin-top: 1px; font-size: 14px; font-weight: 700; }
-    .identity .hospital { margin-top: 1px; font-size: 16px; font-weight: 700; }
-    .badge { width: 128px; border: 2px solid #111; text-align: center; padding: 6px 4px; }
-    .badge b { display: block; font-size: 13px; }
-    .badge span { display: block; margin-top: 6px; border-top: 1px solid #111; padding-top: 4px; font-size: 11px; }
-    .title { margin-top: 8px; background: #111; color: #fff; text-align: center; font-size: 20px; font-weight: 700; padding: 6px 8px; }
-    .meta, .stats, table { width: 100%; border-collapse: collapse; }
-    .meta { margin-top: 8px; }
-    .meta td { border: 1px solid #111; width: 25%; padding: 0; vertical-align: top; }
-    .meta .k { background: #111; color: #fff; text-align: center; font-size: 11px; font-weight: 700; padding: 3px; }
-    .meta .v { min-height: 26px; text-align: center; font-size: 13px; font-weight: 700; padding: 5px 4px; }
-    .stats { margin-top: 8px; }
-    .stats td { border: 1px solid #111; text-align: center; width: 16.66%; padding: 0; }
-    .stats .k { background: #111; color: #fff; font-size: 11px; padding: 3px; }
-    .stats .v { font-size: 18px; font-weight: 700; padding: 4px 0 5px; }
-    table.data { margin-top: 8px; font-size: 11px; }
-    table.data th { background: #111; color: #fff; border: 1px solid #111; padding: 5px 3px; font-weight: 700; }
-    table.data td { border: 1px solid #111; padding: 4px 3px; text-align: center; vertical-align: middle; }
-    table.data td.name { text-align: right; font-weight: 700; }
-    table.data tr.alt td { background: #f7f7f7; }
+    @page { size: A4 landscape; margin: 7mm 7mm 11mm; }
+    * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    html, body { margin: 0; padding: 0; color: #111; background: #fff; font-family: Amiri, 'Geeza Pro', Tahoma, serif; }
+    table { width: 100%; border-collapse: collapse; }
+    .banner { display: flex; align-items: center; gap: 8px; }
+    .banner img { width: 34px; height: 34px; object-fit: contain; }
+    .banner .txt { flex: 1; text-align: right; line-height: 1.25; }
+    .banner b { font-size: 13px; }
+    .banner span { display: block; font-size: 11px; }
+    .stats td { border: 1px solid #111; text-align: center; padding: 0; }
+    .stats .k { background: #111; color: #fff; font-size: 10px; padding: 2px 0; }
+    .stats .v { font-size: 14px; font-weight: 700; padding: 3px 0 4px; }
+    table.data { table-layout: fixed; margin-top: 6px; font-size: 10.5px; }
+    table.data th, table.data td { border: 1px solid #111; padding: 3px 3px; text-align: center; vertical-align: middle; white-space: nowrap; overflow: hidden; }
+    table.data th { background: #111; color: #fff; font-weight: 700; font-size: 11px; }
+    table.data td.name { text-align: right; font-weight: 700; white-space: normal; line-height: 1.2; }
+    table.data tr.alt td { background: #f6f6f6; }
     table.data tr.absent td { background: #ececec; }
     thead { display: table-header-group; }
+    tfoot { display: table-footer-group; }
     tr, .signs td { break-inside: avoid; page-break-inside: avoid; }
-    .signs { width: 100%; border-collapse: collapse; margin-top: 14px; }
-    .signs td { width: 33.33%; padding: 0 6px; vertical-align: top; }
-    .sign { border: 1.5px solid #111; min-height: 92px; padding: 8px; text-align: center; }
-    .sign b { font-size: 13px; }
-    .sign p { margin: 12px 0 0; text-align: right; font-size: 12px; }
-    .foot { display: flex; justify-content: space-between; align-items: center; margin-top: 8px; border-top: 2px solid #111; padding-top: 5px; font-size: 11px; font-weight: 700; }
+    .mast th { background: #fff; color: #111; border: none; padding: 0 0 6px; text-align: right; }
+    .signs { margin-top: 10px; }
+    .signs td { width: 33.33%; padding: 0 5px; vertical-align: top; }
+    .sign { border: 1.5px solid #111; height: 78px; padding: 6px 8px; }
+    .sign b { display: block; text-align: center; font-size: 12px; }
+    .sign p { margin: 8px 0 0; font-size: 11px; }
+    .foot { margin-top: 6px; border-top: 2px solid #111; padding-top: 4px; display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; }
     @media screen {
-      body { background: #d9d3c7; padding: 18px; }
-      .frame { max-width: 1120px; margin: 0 auto; background: #fff; box-shadow: 0 16px 40px rgba(0,0,0,.18); }
+      body { background: #e6e1d6; }
+      .sheet { width: 297mm; min-height: 210mm; margin: 10px auto; background: #fff; padding: 7mm; }
+    }
+    @media print {
+      .sheet { width: 100%; margin: 0; padding: 0; min-height: 0; }
     }
   </style>
 </head>
 <body>
-  <div class="frame">
-    <div class="head">
-      <img src="${origin}/hospital-logo.png" alt="" />
-      <div class="identity">
-        <div class="state">جمهورية العراق</div>
-        <div class="ministry">وزارة الصحة</div>
-        <div class="dept">دائرة صحة النجف الأشرف</div>
-        <div class="hospital">مستشفى الحكيم العام</div>
-      </div>
-      <div class="badge">
-        <b>شعبة البصمة</b>
-        <b>كشف الحضور</b>
-        <span>${esc(issuedAt())}</span>
-      </div>
-    </div>
-    <div class="title">كشف الحضور والانصراف</div>
-    <table class="meta">
-      <tr>
-        <td><div class="k">الجهاز</div><div class="v">${esc(input.deviceName)}</div></td>
-        <td><div class="k">القسم</div><div class="v">${esc(input.departmentName || '—')}</div></td>
-        <td><div class="k">الفترة</div><div class="v" dir="ltr">${esc(input.fromDate)} — ${esc(input.toDate)}</div></td>
-        <td><div class="k">التسلسل</div><div class="v" dir="ltr">${esc(input.serial)}</div></td>
-      </tr>
-    </table>
+  <div class="sheet">
     <table class="stats">
-      <tr>
-        ${stats.map(([label, value]) => `<td><div class="k">${label}</div><div class="v">${value}</div></td>`).join('')}
-      </tr>
+      <tr>${stats.map(([label, value]) => `<td><div class="k">${label}</div><div class="v">${value}</div></td>`).join('')}</tr>
     </table>
     <table class="data">
+      <colgroup>
+        <col style="width:4%"/><col style="width:9%"/><col style="width:6%"/><col style="width:16%"/>
+        <col style="width:9%"/><col style="width:12%"/><col style="width:8%"/><col style="width:8%"/>
+        <col style="width:5%"/><col style="width:5%"/><col style="width:5%"/><col style="width:5%"/><col style="width:8%"/>
+      </colgroup>
       <thead>
+        <tr class="mast">
+          <th colspan="13">
+            <div class="banner">
+              <img src="${origin}/hospital-logo.png" alt="" />
+              <div class="txt">
+                <b>وزارة الصحة — دائرة صحة النجف الأشرف — مستشفى الحكيم العام</b>
+                <span>كشف الحضور والانصراف · ${esc(input.deviceName)} · ${esc(input.departmentName || '—')} · <span dir="ltr">${esc(input.fromDate)} — ${esc(input.toDate)}</span> · ${esc(issuedAt())}</span>
+              </div>
+            </div>
+          </th>
+        </tr>
         <tr>
           <th>ت</th><th>التاريخ</th><th>المعرف</th><th>الاسم</th><th>الوحدة</th><th>الدوام</th>
           <th>حضور</th><th>انصراف</th><th>المطلوب</th><th>الفعلي</th><th>تأخير</th><th>إضافي</th><th>الحالة</th>
