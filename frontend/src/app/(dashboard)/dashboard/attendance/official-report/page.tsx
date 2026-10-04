@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@tanstack/react-query';
 import { FileDown } from 'lucide-react';
-import { apiGet } from '@/lib/api';
+import { fetchLiveDayRange } from '@/lib/live-day-range';
 import { Button } from '@/components/ui/button';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -45,10 +45,7 @@ function OfficialReportInner() {
   const { data, isLoading, error } = useQuery({
     queryKey: ['attendance-official', deviceId, fromDate, toDate],
     enabled: Boolean(deviceId && fromDate && toDate),
-    queryFn: () =>
-      apiGet<LiveDay>(
-        `/api/devices/${deviceId}/live-day?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}`,
-      ),
+    queryFn: () => fetchLiveDayRange<LiveDay>(deviceId, fromDate, toDate),
   });
 
   const rows = (data?.roster ?? []).filter((row) => {

@@ -5,6 +5,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { Clock3, FileDown, FileSpreadsheet, Fingerprint, RefreshCw, Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiGet, apiPost } from '@/lib/api';
+import { fetchLiveDayRange } from '@/lib/live-day-range';
 import { downloadAttendancePdf, rosterMatchesStatus, type AttendancePdfLayout, type AttendanceStatusFilter } from '@/lib/attendance-pdf';
 import { downloadAttendanceExcel } from '@/lib/attendance-excel';
 import { clockFrom24, hospitalClock, hospitalDateTime } from '@/lib/hospital-clock';
@@ -174,10 +175,7 @@ export default function AttendancePage() {
     queryKey: ['live-day', activeId, fromDate, toDate],
     enabled: Boolean(activeId),
     refetchInterval: 20000,
-    queryFn: () =>
-      apiGet<LiveDay>(
-        `/api/devices/${activeId}/live-day?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}`,
-      ),
+    queryFn: () => fetchLiveDayRange<LiveDay>(activeId, fromDate, toDate),
   });
 
   const empQuery = useQuery({
