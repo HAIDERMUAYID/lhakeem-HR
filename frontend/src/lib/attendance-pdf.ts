@@ -78,8 +78,8 @@ export type AttendancePdfInput = {
 };
 
 const LAYOUTS = {
-  detailed: { width: 1123, height: 794, orientation: 'landscape' as const, pdfWidth: 297, pdfHeight: 210, first: 14, next: 22, sign: 5 },
-  official: { width: 794, height: 1123, orientation: 'portrait' as const, pdfWidth: 210, pdfHeight: 297, first: 22, next: 32, sign: 7 },
+  detailed: { width: 1123, height: 794, orientation: 'landscape' as const, pdfWidth: 297, pdfHeight: 210, first: 11, next: 18, sign: 4 },
+  official: { width: 794, height: 1123, orientation: 'portrait' as const, pdfWidth: 210, pdfHeight: 297, first: 16, next: 26, sign: 6 },
 };
 
 const LAYOUT_TITLE: Record<AttendancePdfLayout, string> = {
@@ -187,51 +187,63 @@ function paginate(rows: AttendancePdfRow[], layout: AttendancePdfLayout): PageSp
   return pages;
 }
 
-const cellBorder = '1px solid #111';
+const ink = '#111';
+const cellBorder = `1px solid ${ink}`;
 
-function metaCell(label: string, value: string) {
-  return `<td style="border:${cellBorder};padding:5px 8px;width:50%;vertical-align:middle;"><span style="font-weight:700;">${label}: </span>${value}</td>`;
+function issuedAt() {
+  return new Intl.DateTimeFormat('ar-IQ', {
+    timeZone: 'Asia/Baghdad',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  }).format(new Date());
+}
+
+function infoCell(label: string, value: string) {
+  return `<td style="border:${cellBorder};padding:0;width:25%;vertical-align:top;">
+    <div style="background:#111;color:#fff;font-size:10px;font-weight:700;text-align:center;padding:3px 4px;">${label}</div>
+    <div style="min-height:28px;padding:5px 6px;text-align:center;font-size:12px;font-weight:700;line-height:1.35;">${value}</div>
+  </td>`;
 }
 
 function letterhead(input: AttendancePdfInput, layout: AttendancePdfLayout, compact: boolean) {
-  const dept = input.departmentName
-    ? `${input.departmentName}${input.departmentLocked ? '' : ' — غير مثبت'}`
-    : 'غير مربوط بقسم';
-  const issued = new Date().toLocaleString('ar-EG', { dateStyle: 'medium', timeStyle: 'short' });
+  const dept = input.departmentName || '—';
   if (compact) {
     return `
-      <div style="display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid #111;padding-bottom:6px;margin-bottom:8px;font-size:12px;white-space:nowrap;">
-        <div style="font-weight:700;">مستشفى الحكيم العام — كشف الحضور والانصراف</div>
-        <div dir="ltr">${esc(input.fromDate)} — ${esc(input.toDate)}</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;background:#111;color:#fff;padding:7px 10px;margin-bottom:8px;">
+        <div style="font-size:13px;font-weight:700;">مستشفى الحكيم العام — كشف الحضور والانصراف</div>
+        <div style="font-size:12px;" dir="ltr">${esc(input.fromDate)} — ${esc(input.toDate)}</div>
       </div>
     `;
   }
   const missing = unscheduledCount(input.rows);
   return `
-    <div style="text-align:center;">
-      <img src="/hospital-logo.png" alt="" style="height:72px;width:auto;object-fit:contain;" />
-      <div style="margin-top:4px;font-size:20px;font-weight:700;letter-spacing:0;">وزارة الصحة</div>
-      <div style="margin-top:2px;font-size:16px;font-weight:700;">دائرة صحة النجف الأشرف</div>
-      <div style="margin-top:2px;font-size:16px;font-weight:700;">مستشفى الحكيم العام</div>
-      <div style="margin:8px auto 0;width:180px;border-top:3px solid #111;border-bottom:1px solid #111;height:5px;"></div>
-      <div style="margin-top:10px;font-size:18px;font-weight:800;">كشف الحضور والانصراف</div>
-      <div style="margin-top:2px;font-size:13px;">${LAYOUT_TITLE[layout]}</div>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:12px;">
+      <img src="/hospital-logo.png" alt="" style="height:78px;width:78px;object-fit:contain;" />
+      <div style="flex:1;text-align:center;">
+        <div style="font-size:15px;font-weight:700;">جمهورية العراق</div>
+        <div style="margin-top:2px;font-size:20px;font-weight:700;">وزارة الصحة</div>
+        <div style="margin-top:2px;font-size:15px;font-weight:700;">دائرة صحة النجف الأشرف</div>
+        <div style="margin-top:2px;font-size:17px;font-weight:700;">مستشفى الحكيم العام</div>
+      </div>
+      <div style="width:118px;border:2px solid #111;text-align:center;padding:6px 4px;">
+        <div style="font-size:11px;font-weight:700;">شعبة البصمة</div>
+        <div style="margin-top:4px;font-size:13px;font-weight:700;">${LAYOUT_TITLE[layout]}</div>
+        <div style="margin-top:6px;border-top:1px solid #111;padding-top:4px;font-size:10px;">${esc(issuedAt())}</div>
+      </div>
     </div>
-    <table style="width:100%;border-collapse:collapse;margin-top:10px;font-size:12px;">
+    <div style="margin-top:10px;background:#111;color:#fff;text-align:center;font-size:20px;font-weight:700;letter-spacing:0;padding:7px 8px;">
+      كشف الحضور والانصراف
+    </div>
+    <table style="width:100%;border-collapse:collapse;margin-top:8px;">
       <tr>
-        ${metaCell('الجهاز', esc(input.deviceName))}
-        ${metaCell('الفترة', `<span dir="ltr">${esc(input.fromDate)} — ${esc(input.toDate)}</span>`)}
-      </tr>
-      <tr>
-        ${metaCell('القسم', esc(dept))}
-        ${metaCell('الرقم التسلسلي', `<span dir="ltr">${esc(input.serial)}</span>`)}
-      </tr>
-      <tr>
-        ${metaCell('الإصدار', esc(issued))}
-        ${metaCell('النطاق', esc(filterLine(input)))}
+        ${infoCell('الجهاز', esc(input.deviceName))}
+        ${infoCell('القسم', esc(dept))}
+        ${infoCell('الفترة', `<span dir="ltr">${esc(input.fromDate)} — ${esc(input.toDate)}</span>`)}
+        ${infoCell('التسلسل', `<span dir="ltr">${esc(input.serial)}</span>`)}
       </tr>
     </table>
-    ${missing ? `<div style="margin-top:6px;font-size:11px;text-align:center;">صفوف بلا جدول دوام: ${missing}. تبقى خانات التأخير والإضافي فارغة.</div>` : ''}
+    <div style="margin-top:6px;font-size:11px;text-align:center;">${esc(filterLine(input))}${missing ? ` · صفوف بلا جدول: ${missing}` : ''}</div>
   `;
 }
 
@@ -239,7 +251,10 @@ function summaryHtml(rows: AttendancePdfRow[]) {
   const cells = summarize(rows)
     .map(
       ([label, value]) =>
-        `<td style="border:${cellBorder};padding:4px 2px;text-align:center;width:${100 / 8}%;"><div style="font-size:10px;">${label}</div><div style="font-size:13px;font-weight:700;line-height:1.2;">${value}</div></td>`,
+        `<td style="border:1px solid #111;padding:0;text-align:center;width:${100 / 8}%;">
+          <div style="background:#111;color:#fff;font-size:10px;padding:3px 0;">${label}</div>
+          <div style="font-size:16px;font-weight:700;padding:5px 0;line-height:1;">${value}</div>
+        </td>`,
     )
     .join('');
   return `<table style="width:100%;border-collapse:collapse;margin-top:8px;"><tr>${cells}</tr></table>`;
@@ -277,7 +292,7 @@ function tableHtml(rows: AttendancePdfRow[], startIndex: number, layout: Attenda
     ? ['ت', 'التاريخ', 'المعرف', 'الاسم', 'الوحدة', 'حضور', 'انصراف', 'الحالة']
     : ['ت', 'التاريخ', 'المعرف', 'الاسم', 'العنوان', 'القسم', 'الوحدة', 'الدوام', 'حضور', 'انصراف', 'المطلوب', 'الفعلي', 'تأخير', 'مبكر', 'إضافي', 'الحالة']
   )
-    .map((h) => `<th style="border:${cellBorder};height:28px;padding:0 4px;font-weight:700;text-align:center;background:#f4f4f4;white-space:nowrap;">${h}</th>`)
+    .map((h) => `<th style="border:${cellBorder};height:30px;padding:0 4px;font-weight:700;text-align:center;background:#111;color:#fff;white-space:nowrap;">${h}</th>`)
     .join('');
   const rowHeight = layout === 'official' ? 24 : 20;
   const body = rows
@@ -285,9 +300,9 @@ function tableHtml(rows: AttendancePdfRow[], startIndex: number, layout: Attenda
       const cells = rowCells(row, startIndex + i + 1, layout);
       return `<tr>${cells
         .map((cell, col) => {
-          const weight = col === 3 || col === cells.length - 1 ? '700' : '400';
           const nameCell = col === 3;
-          return `<td style="border:${cellBorder};height:${nameCell ? 'auto' : rowHeight + 'px'};min-height:${rowHeight}px;padding:3px 4px;text-align:center;font-weight:${nameCell ? '400' : weight};white-space:${nameCell ? 'normal' : 'nowrap'};line-height:1.25;vertical-align:middle;">${esc(cell)}</td>`;
+          const shade = row.status === 'ABSENT' ? 'background:#f3f3f3;' : i % 2 === 1 ? 'background:#fafafa;' : '';
+          return `<td style="border:${cellBorder};${shade}height:${nameCell ? 'auto' : rowHeight + 'px'};min-height:${rowHeight}px;padding:3px 4px;text-align:${nameCell ? 'right' : 'center'};font-weight:${nameCell || col === cells.length - 1 ? '700' : '400'};white-space:${nameCell ? 'normal' : 'nowrap'};line-height:1.25;vertical-align:middle;">${esc(cell)}</td>`;
         })
         .join('')}</tr>`;
     })
@@ -312,37 +327,37 @@ function signaturesHtml() {
   const blocks = ['منظم الكشف', 'مسؤول شعبة البصمة', 'مدير القسم']
     .map(
       (label) => `
-      <td style="width:33%;text-align:center;vertical-align:top;padding:0 10px;">
-        <div style="font-weight:700;font-size:13px;">${label}</div>
-        <div style="height:36px;"></div>
-        <div style="border-top:1px solid #111;padding-top:4px;font-size:11px;">التوقيع</div>
+      <td style="width:33%;vertical-align:top;padding:0 8px;">
+        <div style="border:1.5px solid #111;min-height:108px;padding:8px;text-align:center;">
+          <div style="font-weight:700;font-size:13px;">${label}</div>
+          <div style="margin-top:18px;text-align:right;font-size:11px;">الاسم: ........................</div>
+          <div style="margin-top:14px;text-align:right;font-size:11px;">التوقيع: .....................</div>
+          <div style="margin-top:14px;text-align:right;font-size:11px;">التاريخ: .....................</div>
+        </div>
       </td>`,
     )
     .join('');
   return `
-    <div style="margin-top:auto;padding-top:16px;">
+    <div style="margin-top:auto;padding-top:14px;">
       <table style="width:100%;border-collapse:collapse;"><tr>${blocks}</tr></table>
-      <div style="margin-top:10px;font-size:10px;line-height:1.55;text-align:right;">
-        <div>إذا تقاربت أول بصمة وآخرها بأقل من ساعتين يُعرض وقت واحد: قبل الظهر حضور، وبعد الظهر انصراف.</div>
-        <div>الاستراحة والإجازة والعطلة الرسمية تُترك خانات الحضور والانصراف فارغة.</div>
-        <div>التأخير والانصراف المبكر والإضافي تُحسب من جدول الدوام، وتبقى فارغة إذا لم يوجد جدول.</div>
-      </div>
     </div>
   `;
 }
 
 function pageHtml(input: AttendancePdfInput, layout: AttendancePdfLayout, page: PageSpec, pageNo: number, pageCount: number) {
   const spec = LAYOUTS[layout];
-  const pad = layout === 'official' ? 36 : 28;
+  const pad = layout === 'official' ? 28 : 22;
   return `
     <div style="width:${spec.width}px;height:${spec.height}px;padding:${pad}px;box-sizing:border-box;background:#fff;color:#111;display:flex;flex-direction:column;overflow:hidden;font-family:Amiri, 'Geeza Pro', Tahoma, Arial, sans-serif;">
-      ${letterhead(input, layout, !page.summary)}
-      ${page.summary ? summaryHtml(input.rows) : ''}
-      ${tableHtml(page.rows, page.startIndex, layout)}
-      ${page.signatures ? signaturesHtml() : '<div style="flex:1"></div>'}
-      <div style="flex-shrink:0;margin-top:${page.signatures ? '10px' : 'auto'};display:flex;justify-content:space-between;border-top:1px solid #111;padding-top:6px;font-size:11px;">
-        <span>يطابق الصفوف المعروضة بعد الفلاتر</span>
-        <span>صفحة ${pageNo} من ${pageCount}</span>
+      <div style="flex:1;display:flex;flex-direction:column;border:2px solid #111;padding:12px 12px 8px;min-height:0;">
+        ${letterhead(input, layout, !page.summary)}
+        ${page.summary ? summaryHtml(input.rows) : ''}
+        ${tableHtml(page.rows, page.startIndex, layout)}
+        ${page.signatures ? signaturesHtml() : '<div style="flex:1"></div>'}
+        <div style="flex-shrink:0;margin-top:${page.signatures ? '8px' : 'auto'};display:flex;justify-content:space-between;align-items:center;border-top:2px solid #111;padding-top:6px;font-size:11px;">
+          <span style="font-weight:700;">مستشفى الحكيم العام</span>
+          <span style="border:1px solid #111;padding:2px 8px;font-weight:700;">صفحة ${pageNo} من ${pageCount}</span>
+        </div>
       </div>
     </div>
   `;
@@ -403,7 +418,7 @@ export async function downloadAttendancePdf(input: AttendancePdfInput) {
     for (let i = 0; i < sheets.length; i += 1) {
       input.onProgress?.(i + 1, sheets.length);
       const canvas = await toCanvas(sheets[i], {
-        pixelRatio: 1.35,
+        pixelRatio: 1.6,
         backgroundColor: '#ffffff',
         width: spec.width,
         height: spec.height,
