@@ -585,13 +585,6 @@ export class DevicesService {
       }
     }
 
-    const maxDays = 120;
-    const spanDays =
-      Math.floor((startOfLocalDay(rangeTo).getTime() - startOfLocalDay(rangeFrom).getTime()) / 86400000) + 1;
-    if (spanDays > maxDays) {
-      throw new BadRequestException(`نطاق الكشف يقتصر على ${maxDays} يوماً`);
-    }
-
     const fingerprints = await this.prisma.employeeFingerprint.findMany({
       where: { deviceId },
       include: {
@@ -1294,11 +1287,6 @@ export class DevicesService {
     }
     if (rangeFrom.getTime() > rangeTo.getTime()) {
       throw new BadRequestException('من تاريخ يجب أن يكون قبل أو يساوي إلى تاريخ');
-    }
-    const spanDays =
-      Math.floor((rangeTo.getTime() - rangeFrom.getTime()) / 86400000) + 1;
-    if (spanDays > 366) {
-      throw new BadRequestException('يمكن اختيار أي فترة حتى سنة كاملة');
     }
     const rangeEnd = endOfLocalDay(rangeTo);
     const liveKey = `${deviceId}|${localDateKey(rangeFrom)}|${localDateKey(rangeTo)}`;
