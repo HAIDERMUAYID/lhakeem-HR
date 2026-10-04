@@ -75,7 +75,7 @@ export function printAttendanceSheet(input: {
   ];
   const body = input.rows
     .map((row, index) => {
-      const tone = row.status === 'ABSENT' ? ' class="absent"' : index % 2 ? ' class="alt"' : '';
+      const tone = ` class="${row.status.toLowerCase()}${row.lateMinutes > 0 ? ' late' : ''}"`;
       const cells = [
         String(index + 1),
         row.workDate,
@@ -104,48 +104,72 @@ export function printAttendanceSheet(input: {
   <style>
     @font-face { font-family: Amiri; src: url('${origin}/fonts/Amiri-Regular.ttf') format('truetype'); font-weight: 400; }
     @font-face { font-family: Amiri; src: url('${origin}/fonts/Amiri-Bold.ttf') format('truetype'); font-weight: 700; }
-    @page { size: A4 landscape; margin: 7mm 7mm 11mm; }
+    @page {
+      size: A4 landscape;
+      margin: 8mm 8mm 12mm;
+      @bottom-center {
+        content: "صفحة " counter(page) " من " counter(pages);
+        font-family: Amiri, Tahoma, serif;
+        font-size: 10pt;
+        color: #12324f;
+      }
+    }
     * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    html, body { margin: 0; padding: 0; color: #111; background: #fff; font-family: Amiri, 'Geeza Pro', Tahoma, serif; }
-    table { width: 100%; border-collapse: collapse; }
-    .banner { display: flex; align-items: center; gap: 8px; }
-    .banner img { width: 34px; height: 34px; object-fit: contain; }
-    .banner .txt { flex: 1; text-align: right; line-height: 1.25; }
-    .banner b { font-size: 13px; }
-    .banner span { display: block; font-size: 11px; }
-    .stats td { border: 1px solid #111; text-align: center; padding: 0; }
-    .stats .k { background: #111; color: #fff; font-size: 10px; padding: 2px 0; }
-    .stats .v { font-size: 14px; font-weight: 700; padding: 3px 0 4px; }
-    table.data { table-layout: fixed; margin-top: 6px; font-size: 10.5px; }
-    table.data th, table.data td { border: 1px solid #111; padding: 3px 3px; text-align: center; vertical-align: middle; white-space: nowrap; overflow: hidden; }
-    table.data th { background: #111; color: #fff; font-weight: 700; font-size: 11px; }
-    table.data td.name { text-align: right; font-weight: 700; white-space: normal; line-height: 1.2; }
-    table.data tr.alt td { background: #f6f6f6; }
-    table.data tr.absent td { background: #ececec; }
+    html, body { margin: 0; color: #12324f; background: #fff; font-family: Amiri, 'Geeza Pro', Tahoma, serif; }
+    .letter { display: flex; align-items: center; gap: 10px; border-bottom: 3px solid #12324f; padding-bottom: 6px; }
+    .letter img { width: 58px; height: 58px; object-fit: contain; }
+    .letter .mid { flex: 1; text-align: center; }
+    .letter .mid .l1 { font-size: 12px; color: #8a6a22; font-weight: 700; }
+    .letter .mid .l2 { font-size: 20px; font-weight: 700; color: #12324f; }
+    .letter .mid .l3 { font-size: 13px; font-weight: 700; }
+    .letter .side { width: 150px; background: #12324f; color: #fff; text-align: center; padding: 6px 4px; }
+    .letter .side b { display: block; font-size: 13px; }
+    .letter .side span { display: block; margin-top: 4px; color: #f3e2b3; font-size: 11px; }
+    .rule { height: 3px; margin-top: 2px; background: linear-gradient(90deg, #12324f, #c6a15b, #12324f); }
+    .stats { width: 100%; border-collapse: collapse; margin-top: 6px; }
+    .stats td { width: 16.66%; border: 1px solid #d5deea; text-align: center; background: #f7fafc; }
+    .stats .k { color: #5c6b7a; font-size: 10px; padding-top: 3px; }
+    .stats .v { color: #12324f; font-size: 16px; font-weight: 700; padding-bottom: 3px; }
+    table.data { width: 100%; border-collapse: collapse; table-layout: fixed; margin-top: 6px; font-size: 10.5px; }
+    table.data thead { display: table-header-group; }
+    table.data tfoot { display: table-footer-group; }
+    table.data tbody tr, table.data tbody td { break-inside: avoid; page-break-inside: avoid; }
     thead { display: table-header-group; }
-    tfoot { display: table-footer-group; }
-    tr, .signs td { break-inside: avoid; page-break-inside: avoid; }
-    .mast th { background: #fff; color: #111; border: none; padding: 0 0 6px; text-align: right; }
-    .signs { margin-top: 10px; }
-    .signs td { width: 33.33%; padding: 0 5px; vertical-align: top; }
-    .sign { border: 1.5px solid #111; height: 78px; padding: 6px 8px; }
-    .sign b { display: block; text-align: center; font-size: 12px; }
-    .sign p { margin: 8px 0 0; font-size: 11px; }
-    .foot { margin-top: 6px; border-top: 2px solid #111; padding-top: 4px; display: flex; justify-content: space-between; font-size: 10px; font-weight: 700; }
-    @media screen {
-      body { background: #e6e1d6; }
-      .sheet { width: 297mm; min-height: 210mm; margin: 10px auto; background: #fff; padding: 7mm; }
-    }
-    @media print {
-      .sheet { width: 100%; margin: 0; padding: 0; min-height: 0; }
-    }
+    table.data th { background: #12324f; color: #fff; border: 1px solid #0d2438; padding: 5px 3px; font-weight: 700; text-align: center; }
+    table.data td { border: 1px solid #d5deea; padding: 4px 3px; text-align: center; vertical-align: middle; background: #fff; }
+    table.data td.name { text-align: right; font-weight: 700; color: #12324f; white-space: normal; line-height: 1.25; }
+    table.data tr.present td { background: #eef8f2; }
+    table.data tr.single td { background: #eef6fb; }
+    table.data tr.absent td { background: #fdf0f0; }
+    table.data tr.leave td { background: #f6f0fb; }
+    table.data tr.rest td, table.data tr.holiday td { background: #f4f6f8; }
+    table.data tr.late td { background: #fff6ea; }
+    tbody tr, tbody td, .signs, .signs td { break-inside: avoid; page-break-inside: avoid; }
+    .signs { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    .signs td { width: 33.33%; padding: 0 6px; vertical-align: top; }
+    .sign { border: 1px solid #12324f; border-top: 4px solid #c6a15b; min-height: 78px; padding: 7px 8px; background: #fbfcfe; }
+    .sign b { display: block; text-align: center; color: #12324f; font-size: 13px; }
+    .sign p { margin: 9px 0 0; font-size: 12px; color: #334155; }
+    @media screen { body { background: #e7eef5; } .sheet { width: 297mm; margin: 12px auto; background: #fff; padding: 8mm; box-shadow: 0 12px 36px rgba(18,50,79,.16); } }
+    @media print { .sheet { width: auto; margin: 0; padding: 0; box-shadow: none; } }
   </style>
 </head>
 <body>
   <div class="sheet">
+    <div class="letter">
+      <img src="${origin}/hospital-logo.png" alt="" />
+      <div class="mid">
+        <div class="l1">جمهورية العراق · وزارة الصحة</div>
+        <div class="l2">دائرة صحة النجف الأشرف</div>
+        <div class="l3">مستشفى الحكيم العام — كشف الحضور والانصراف</div>
+      </div>
+      <div class="side"><b>شعبة البصمة</b><span>${esc(issuedAt())}</span></div>
+    </div>
+    <div class="rule"></div>
     <table class="stats">
       <tr>${stats.map(([label, value]) => `<td><div class="k">${label}</div><div class="v">${value}</div></td>`).join('')}</tr>
     </table>
+    <p style="margin:6px 0 0;font-size:12px;font-weight:700;color:#12324f;">${esc(input.deviceName)} · ${esc(input.departmentName || '—')} · <span dir="ltr">${esc(input.fromDate)} — ${esc(input.toDate)}</span></p>
     <table class="data">
       <colgroup>
         <col style="width:4%"/><col style="width:9%"/><col style="width:6%"/><col style="width:16%"/>
@@ -153,17 +177,6 @@ export function printAttendanceSheet(input: {
         <col style="width:5%"/><col style="width:5%"/><col style="width:5%"/><col style="width:5%"/><col style="width:8%"/>
       </colgroup>
       <thead>
-        <tr class="mast">
-          <th colspan="13">
-            <div class="banner">
-              <img src="${origin}/hospital-logo.png" alt="" />
-              <div class="txt">
-                <b>وزارة الصحة — دائرة صحة النجف الأشرف — مستشفى الحكيم العام</b>
-                <span>كشف الحضور والانصراف · ${esc(input.deviceName)} · ${esc(input.departmentName || '—')} · <span dir="ltr">${esc(input.fromDate)} — ${esc(input.toDate)}</span> · ${esc(issuedAt())}</span>
-              </div>
-            </div>
-          </th>
-        </tr>
         <tr>
           <th>ت</th><th>التاريخ</th><th>المعرف</th><th>الاسم</th><th>الوحدة</th><th>الدوام</th>
           <th>حضور</th><th>انصراف</th><th>المطلوب</th><th>الفعلي</th><th>تأخير</th><th>إضافي</th><th>الحالة</th>
