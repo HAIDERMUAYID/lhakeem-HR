@@ -18,6 +18,12 @@ function timeToMinutes(t: string): number {
   return (h || 0) * 60 + (m || 0);
 }
 
+function graceMinutes(value: unknown, fallback: number) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.max(0, Math.min(180, Math.round(n)));
+}
+
 /** ساعات العمل اليومية (مراعاة عبور منتصف الليل) */
 function hoursBetween(startTime: string, endTime: string): number {
   const start = timeToMinutes(startTime);
@@ -191,6 +197,8 @@ export class WorkSchedulesService {
       cycleStartDate?: Date;
       startTime: string;
       endTime: string;
+      arrivalGraceMinutes?: number;
+      departureGraceMinutes?: number;
       breakStart?: string;
       breakEnd?: string;
     },
@@ -214,6 +222,8 @@ export class WorkSchedulesService {
       cycleStartDate: dto.cycleStartDate ?? null,
       startTime: dto.startTime,
       endTime: dto.endTime,
+      arrivalGraceMinutes: graceMinutes(dto.arrivalGraceMinutes, 60),
+      departureGraceMinutes: graceMinutes(dto.departureGraceMinutes, 30),
       breakStart: dto.breakStart ?? null,
       breakEnd: dto.breakEnd ?? null,
     };
@@ -241,6 +251,8 @@ export class WorkSchedulesService {
       cycleStartDate?: string;
       startTime: string;
       endTime: string;
+      arrivalGraceMinutes?: number;
+      departureGraceMinutes?: number;
       breakStart?: string;
       breakEnd?: string;
     },
@@ -257,6 +269,8 @@ export class WorkSchedulesService {
           cycleStartDate: body.cycleStartDate ? new Date(body.cycleStartDate) : undefined,
           startTime: body.startTime,
           endTime: body.endTime,
+          arrivalGraceMinutes: body.arrivalGraceMinutes,
+          departureGraceMinutes: body.departureGraceMinutes,
           breakStart: body.breakStart,
           breakEnd: body.breakEnd,
         }, departmentFilter, userPermissions);
@@ -395,6 +409,8 @@ export class WorkSchedulesService {
             cycleStartDate: s.cycleStartDate,
             startTime: s.startTime,
             endTime: s.endTime,
+            arrivalGraceMinutes: s.arrivalGraceMinutes,
+            departureGraceMinutes: s.departureGraceMinutes,
             breakStart: s.breakStart,
             breakEnd: s.breakEnd,
             status: 'PENDING',

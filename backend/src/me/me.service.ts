@@ -106,6 +106,8 @@ export class MeService {
         endTime: daySchedule?.endTime,
         breakStart: daySchedule?.breakStart,
         breakEnd: daySchedule?.breakEnd,
+        arrivalGraceMinutes: daySchedule?.arrivalGraceMinutes,
+        departureGraceMinutes: daySchedule?.departureGraceMinutes,
         checkInAt: punch?.checkInAt ?? null,
         checkOutAt: punch?.checkOutAt ?? null,
         displayMode: punch?.displayMode ?? null,

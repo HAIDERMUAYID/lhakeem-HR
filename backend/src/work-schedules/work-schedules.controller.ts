@@ -54,6 +54,8 @@ export class WorkSchedulesController {
       cycleStartDate?: string;
       startTime: string;
       endTime: string;
+      arrivalGraceMinutes?: number;
+      departureGraceMinutes?: number;
       breakStart?: string;
       breakEnd?: string;
     },
@@ -70,6 +72,8 @@ export class WorkSchedulesController {
       cycleStartDate: dto.cycleStartDate ? new Date(dto.cycleStartDate) : undefined,
       startTime: dto.startTime,
       endTime: dto.endTime,
+      arrivalGraceMinutes: dto.arrivalGraceMinutes,
+      departureGraceMinutes: dto.departureGraceMinutes,
       breakStart: dto.breakStart,
       breakEnd: dto.breakEnd,
     }, deptFilter, user?.permissions);
@@ -89,6 +93,8 @@ export class WorkSchedulesController {
       cycleStartDate?: string;
       startTime: string;
       endTime: string;
+      arrivalGraceMinutes?: number;
+      departureGraceMinutes?: number;
       breakStart?: string;
       breakEnd?: string;
     },

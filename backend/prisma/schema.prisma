@@ -365,6 +365,8 @@ model WorkSchedule {
   cycleStartDate DateTime?      @map("cycle_start_date") // للخفر 1x1,1x2,1x3: أول يوم عمل
   startTime      String         @map("start_time")
   endTime        String         @map("end_time")
+  arrivalGraceMinutes   Int     @default(60) @map("arrival_grace_minutes")
+  departureGraceMinutes Int     @default(30) @map("departure_grace_minutes")
   breakStart     String?        @map("break_start")
   breakEnd       String?        @map("break_end")
   effectiveFrom  DateTime?      @map("effective_from")

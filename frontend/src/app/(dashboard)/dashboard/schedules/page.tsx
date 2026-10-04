@@ -25,6 +25,8 @@ type Schedule = {
   cycleStartDate: string | null;
   startTime: string;
   endTime: string;
+  arrivalGraceMinutes?: number;
+  departureGraceMinutes?: number;
   breakStart: string | null;
   breakEnd: string | null;
   status?: 'PENDING' | 'APPROVED';
@@ -129,6 +131,8 @@ export default function SchedulesPage() {
     cycleStartDate: new Date().toISOString().slice(0, 10),
     startTime: '08:00',
     endTime: '15:00',
+    arrivalGraceMinutes: 60,
+    departureGraceMinutes: 30,
   });
   /** قيم محلية لوقت البداية/النهاية — لكتابة سلسة على الجوال */
   const [localStartTime, setLocalStartTime] = useState('08:00');
@@ -198,6 +202,8 @@ export default function SchedulesPage() {
         cycleStartDate: body.workType === 'SHIFTS' && body.shiftPattern && body.shiftPattern !== 'FIXED' ? body.cycleStartDate : undefined,
         startTime: body.startTime,
         endTime: body.endTime,
+        arrivalGraceMinutes: body.arrivalGraceMinutes,
+        departureGraceMinutes: body.departureGraceMinutes,
       }),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['work-schedules'] });
@@ -221,6 +227,8 @@ export default function SchedulesPage() {
         cycleStartDate: body.workType === 'SHIFTS' && body.shiftPattern && body.shiftPattern !== 'FIXED' ? body.cycleStartDate : undefined,
         startTime: body.startTime,
         endTime: body.endTime,
+        arrivalGraceMinutes: body.arrivalGraceMinutes,
+        departureGraceMinutes: body.departureGraceMinutes,
       }),
     onSuccess: (res: { applied: number; failed: number }) => {
       queryClient.invalidateQueries({ queryKey: ['work-schedules'] });
@@ -281,6 +289,8 @@ export default function SchedulesPage() {
           cycleStartDate: s.cycleStartDate ? new Date(s.cycleStartDate).toISOString().slice(0, 10) : new Date().toISOString().slice(0, 10),
           startTime: s.startTime,
           endTime: s.endTime,
+          arrivalGraceMinutes: s.arrivalGraceMinutes ?? 60,
+          departureGraceMinutes: s.departureGraceMinutes ?? 30,
         });
       }
     }
@@ -644,6 +654,29 @@ export default function SchedulesPage() {
                   />
                 </div>
               )}
+
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">سماح الحضور (دقيقة)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={180}
+                    value={form.arrivalGraceMinutes}
+                    onChange={(e) => setForm((f) => ({ ...f, arrivalGraceMinutes: Number(e.target.value) }))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">سماح الانصراف (دقيقة)</label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={180}
+                    value={form.departureGraceMinutes}
+                    onChange={(e) => setForm((f) => ({ ...f, departureGraceMinutes: Number(e.target.value) }))}
+                  />
+                </div>
+              </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
