@@ -52,12 +52,14 @@ export class DevicesService {
   private punchCache = new Map<string, { at: number; punches: { pin: string; scannedAt: Date; serial?: string }[] }>();
   private punchInflight = new Map<string, Promise<{ pin: string; scannedAt: Date; serial?: string }[]>>();
   private serialLogs = new Map<string, {
+    version: number;
     punches: { pin: string; scannedAt: Date; serial?: string }[];
     coveredFrom: number;
     coveredTo: number;
     watermark: number;
     at: number;
   }>();
+  private static readonly PUNCH_TIME_VERSION = 2;
   private serialFlight = new Map<string, Promise<{ pin: string; scannedAt: Date; serial?: string }[]>>();
   private static readonly PUNCH_CACHE_MS = 60_000;
   private static readonly SERIAL_FRESH_MS = 8_000;
@@ -886,11 +888,13 @@ export class DevicesService {
     const running = this.serialFlight.get(serial);
     if (running) await running.catch(() => undefined);
     const state = this.serialLogs.get(serial);
-    const fresh = state
-      && Date.now() - state.at < DevicesService.SERIAL_FRESH_MS
-      && state.coveredFrom <= scannedFrom.getTime()
-      && state.coveredTo >= scannedTo.getTime();
-    if (fresh && state) return this.slicePunches(state.punches, scannedFrom, scannedTo);
+    if (state && state.version !== DevicesService.PUNCH_TIME_VERSION) this.serialLogs.delete(serial);
+    const current = state?.version === DevicesService.PUNCH_TIME_VERSION ? state : undefined;
+    const fresh = current
+      && Date.now() - current.at < DevicesService.SERIAL_FRESH_MS
+      && current.coveredFrom <= scannedFrom.getTime()
+      && current.coveredTo >= scannedTo.getTime();
+    if (fresh && current) return this.slicePunches(current.punches, scannedFrom, scannedTo);
 
     const job = this.fillSerial(serial, scannedFrom, scannedTo, receivedFrom, receivedTo);
     this.serialFlight.set(serial, job);
@@ -909,7 +913,8 @@ export class DevicesService {
     receivedFrom: Date,
     receivedTo: Date,
   ) {
-    const state = this.serialLogs.get(serial);
+    const stored = this.serialLogs.get(serial);
+    const state = stored?.version === DevicesService.PUNCH_TIME_VERSION ? stored : undefined;
     const haveHistory = Boolean(state && state.coveredFrom <= scannedFrom.getTime() && state.punches.length > 0);
     const incoming = haveHistory
       ? await this.readRecentAdmsPunches(serial)
@@ -923,6 +928,7 @@ export class DevicesService {
     for (const punch of incoming) merged.set(`${punch.pin}|${punch.scannedAt.toISOString()}`, punch);
     const punches = [...merged.values()].sort((a, b) => b.scannedAt.getTime() - a.scannedAt.getTime());
     this.serialLogs.set(serial, {
+      version: DevicesService.PUNCH_TIME_VERSION,
       punches,
       coveredFrom: Math.min(state?.coveredFrom ?? scannedFrom.getTime(), scannedFrom.getTime()),
       coveredTo: Math.max(state?.coveredTo ?? scannedTo.getTime(), scannedTo.getTime()),
@@ -1479,6 +1485,8 @@ export class DevicesService {
           endTime: schedule?.endTime,
           breakStart: schedule?.breakStart,
           breakEnd: schedule?.breakEnd,
+          arrivalGraceMinutes: schedule?.arrivalGraceMinutes,
+          departureGraceMinutes: schedule?.departureGraceMinutes,
           checkInAt: punch?.checkInAt ?? null,
           checkOutAt: punch?.checkOutAt ?? null,
           displayMode: punch?.displayMode ?? null,
