@@ -2,12 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock3, FileDown, FileSpreadsheet, Fingerprint, RefreshCw, Search } from 'lucide-react';
+import { Clock3, FileDown, FileSpreadsheet, Fingerprint, Printer, RefreshCw, Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiGet, apiPost } from '@/lib/api';
 import { fetchLiveDayRange } from '@/lib/live-day-range';
 import { downloadAttendancePdf, rosterMatchesStatus, type AttendancePdfLayout, type AttendanceStatusFilter } from '@/lib/attendance-pdf';
 import { downloadAttendanceExcel } from '@/lib/attendance-excel';
+import { printAttendanceSheet } from '@/lib/attendance-print';
 import { clockFrom24, hospitalClock, hospitalDateTime } from '@/lib/hospital-clock';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -674,6 +675,26 @@ export default function AttendancePage() {
                   <span className="text-sm font-normal text-gray-500">({filteredRoster.length})</span>
                 </h2>
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    className="gap-1"
+                    disabled={!filteredRoster.length || !day}
+                    onClick={() => {
+                      if (!day) return;
+                      const opened = printAttendanceSheet({
+                        deviceName: day.deviceName,
+                        serial: day.serial,
+                        departmentName: day.deviceDepartment?.name ?? null,
+                        fromDate: day.fromDate,
+                        toDate: day.toDate,
+                        rows: filteredRoster,
+                      });
+                      if (!opened) toast.error('المتصفح منع نافذة الطباعة');
+                    }}
+                  >
+                    <Printer className="h-4 w-4" />
+                    طباعة
+                  </Button>
                   <Button
                     size="sm"
                     variant="outline"
