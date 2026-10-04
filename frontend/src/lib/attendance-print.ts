@@ -173,7 +173,7 @@ export function buildAttendancePrintHtml(
               <div class="state">جمهورية العراق</div>
               <div class="ministry">وزارة الصحة</div>
               <div class="dept">دائرة صحة النجف الأشرف</div>
-              <div class="hospital">مستشفى الحكيم العام</div>
+              <div class="hospital">مركز الحكيم لأمراض الكلى</div>
             </div>
             <div class="badge"><div class="a">شعبة البصمة</div><div class="c">${issued}</div></div>
           </div>
@@ -187,7 +187,7 @@ export function buildAttendancePrintHtml(
           <table class="stats"><tr>${stats
             .map(([label, value, kind]) => `<td class="${kind}"><span>${label}</span><b>${value}</b></td>`)
             .join('')}</tr></table>`
-        : `<div class="mini"><b>كشف الحضور والانصراف — مستشفى الحكيم العام</b><span dir="ltr">${esc(input.fromDate)} → ${esc(input.toDate)}</span></div>`;
+        : `<div class="mini"><b>كشف الحضور والانصراف — مركز الحكيم لأمراض الكلى</b><span dir="ltr">${esc(input.fromDate)} → ${esc(input.toDate)}</span></div>`;
       return `<section class="sheet${last ? ' final' : ''}">
         <div class="frame"></div>
         <div class="content">
@@ -195,7 +195,7 @@ export function buildAttendancePrintHtml(
           <table class="data">${colgroup}${thead}<tbody>${chunk.map((row, i) => rowHtml(row, start + i)).join('') || '<tr><td colspan="13" class="empty">لا توجد سجلات ضمن هذه الفترة</td></tr>'}</tbody></table>
           ${last ? signatures : ''}
         </div>
-        <div class="foot"><span>مستشفى الحكيم العام — شعبة البصمة</span><span>صفحة ${pageIndex + 1} من ${pages.length}</span><span>${issued}</span></div>
+        <div class="foot"><span>مركز الحكيم لأمراض الكلى — شعبة البصمة</span><span>صفحة ${pageIndex + 1} من ${pages.length}</span><span>${issued}</span></div>
       </section>`;
     })
     .join('');

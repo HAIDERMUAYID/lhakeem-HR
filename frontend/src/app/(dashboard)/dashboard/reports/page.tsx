@@ -117,7 +117,7 @@ export default function ReportsPage() {
 
   const handleExportPdf = () => {
     const doc = new jsPDF();
-    doc.text('تقرير الموظفين - مستشفى الحكيم العام', 14, 15);
+    doc.text('تقرير الموظفين - مركز الحكيم لأمراض الكلى', 14, 15);
     doc.text(new Date().toLocaleDateString('ar-EG'), 14, 22);
     autoTable(doc, {
       head: [['الاسم', 'العنوان', 'القسم/الوحدة', 'رصيد الإجازات']],

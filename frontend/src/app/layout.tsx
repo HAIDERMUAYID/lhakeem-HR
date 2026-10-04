@@ -11,7 +11,7 @@ const cairo = Cairo({
 });
 
 export const metadata: Metadata = {
-  title: 'نظام إدارة الإجازات | مستشفى الحكيم',
+  title: 'نظام إدارة الإجازات | مركز الحكيم لأمراض الكلى',
   description: 'نظام إدارة الإجازات والدوام والغيابات',
   manifest: '/manifest.json',
   appleWebApp: { capable: true, title: 'الحكيم HR' },

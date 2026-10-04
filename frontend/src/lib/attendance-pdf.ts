@@ -6,11 +6,14 @@ export type AttendanceStatusFilter =
   | 'all'
   | 'present'
   | 'late'
+  | 'early'
+  | 'inside'
   | 'absent'
   | 'leave'
   | 'rest'
   | 'overtime'
-  | 'single';
+  | 'single'
+  | 'noschedule';
 
 export type AttendancePdfRow = {
   fingerprintId: string;
@@ -36,24 +39,31 @@ export const STATUS_FILTER_LABEL: Record<AttendanceStatusFilter, string> = {
   all: 'كل الحالات',
   present: 'الحاضرون',
   late: 'المتأخرون',
+  early: 'انصراف مبكر',
+  inside: 'ما زال في العمل',
   absent: 'الغائبون',
   leave: 'الإجازات',
   rest: 'الاستراحة والعطل',
   overtime: 'العمل الإضافي',
   single: 'بصمة واحدة',
+  noschedule: 'بلا جدول دوام',
 };
 
 export function rosterMatchesStatus(
-  row: Pick<AttendancePdfRow, 'status' | 'lateMinutes' | 'overtimeMinutes'>,
+  row: Pick<AttendancePdfRow, 'status' | 'lateMinutes' | 'earlyLeaveMinutes' | 'overtimeMinutes' | 'checkInAt' | 'checkOutAt' | 'scheduledStart'>,
   status: AttendanceStatusFilter,
 ) {
-  if (status === 'present') return row.status === 'PRESENT' || row.status === 'SINGLE';
-  if (status === 'late') return row.lateMinutes > 0 && (row.status === 'PRESENT' || row.status === 'SINGLE');
+  const present = row.status === 'PRESENT' || row.status === 'SINGLE';
+  if (status === 'present') return present;
+  if (status === 'late') return present && row.lateMinutes > 0;
+  if (status === 'early') return present && row.earlyLeaveMinutes > 0;
+  if (status === 'inside') return present && Boolean(row.checkInAt) && !row.checkOutAt;
   if (status === 'absent') return row.status === 'ABSENT';
   if (status === 'leave') return row.status === 'LEAVE';
   if (status === 'rest') return row.status === 'REST' || row.status === 'HOLIDAY';
   if (status === 'overtime') return row.overtimeMinutes > 0;
   if (status === 'single') return row.status === 'SINGLE';
+  if (status === 'noschedule') return (present || row.status === 'ABSENT') && !row.scheduledStart;
   return true;
 }
 
@@ -211,7 +221,7 @@ function letterhead(input: AttendancePdfInput, layout: AttendancePdfLayout, comp
   if (compact) {
     return `
       <div style="display:flex;align-items:center;justify-content:space-between;background:#111;color:#fff;padding:7px 10px;margin-bottom:8px;">
-        <div style="font-size:13px;font-weight:700;">مستشفى الحكيم العام — كشف الحضور والانصراف</div>
+        <div style="font-size:13px;font-weight:700;">مركز الحكيم لأمراض الكلى — كشف الحضور والانصراف</div>
         <div style="font-size:12px;" dir="ltr">${esc(input.fromDate)} — ${esc(input.toDate)}</div>
       </div>
     `;
@@ -224,7 +234,7 @@ function letterhead(input: AttendancePdfInput, layout: AttendancePdfLayout, comp
         <div style="font-size:15px;font-weight:700;">جمهورية العراق</div>
         <div style="margin-top:2px;font-size:20px;font-weight:700;">وزارة الصحة</div>
         <div style="margin-top:2px;font-size:15px;font-weight:700;">دائرة صحة النجف الأشرف</div>
-        <div style="margin-top:2px;font-size:17px;font-weight:700;">مستشفى الحكيم العام</div>
+        <div style="margin-top:2px;font-size:17px;font-weight:700;">مركز الحكيم لأمراض الكلى</div>
       </div>
       <div style="width:118px;border:2px solid #111;text-align:center;padding:6px 4px;">
         <div style="font-size:11px;font-weight:700;">شعبة البصمة</div>
@@ -355,7 +365,7 @@ function pageHtml(input: AttendancePdfInput, layout: AttendancePdfLayout, page: 
         ${tableHtml(page.rows, page.startIndex, layout)}
         ${page.signatures ? signaturesHtml() : '<div style="flex:1"></div>'}
         <div style="flex-shrink:0;margin-top:${page.signatures ? '8px' : 'auto'};display:flex;justify-content:space-between;align-items:center;border-top:2px solid #111;padding-top:6px;font-size:11px;">
-          <span style="font-weight:700;">مستشفى الحكيم العام</span>
+          <span style="font-weight:700;">مركز الحكيم لأمراض الكلى</span>
           <span style="border:1px solid #111;padding:2px 8px;font-weight:700;">صفحة ${pageNo} من ${pageCount}</span>
         </div>
       </div>

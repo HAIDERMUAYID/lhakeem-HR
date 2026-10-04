@@ -1,6 +1,6 @@
 'use client';
 
-const COPYRIGHT_TEXT = 'جميع الحقوق محفوظة لمستشفى الحكيم العام © 2026';
+const COPYRIGHT_TEXT = 'جميع الحقوق محفوظة لمركز الحكيم لأمراض الكلى © 2026';
 
 interface CopyrightFooterProps {
   /** للخلفية الفاتحة (صفحة الدخول) استخدم variant="light" */

@@ -24,7 +24,19 @@ type LiveDay = {
   roster: AttendancePdfRow[];
 };
 
-const STATUSES: AttendanceStatusFilter[] = ['all', 'present', 'late', 'absent', 'leave', 'rest', 'overtime', 'single'];
+const STATUSES: AttendanceStatusFilter[] = [
+  'all',
+  'present',
+  'late',
+  'early',
+  'inside',
+  'absent',
+  'leave',
+  'rest',
+  'overtime',
+  'single',
+  'noschedule',
+];
 
 function isStatus(value: string | null): value is AttendanceStatusFilter {
   return STATUSES.includes(value as AttendanceStatusFilter);

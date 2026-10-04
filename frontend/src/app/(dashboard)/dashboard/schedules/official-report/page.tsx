@@ -326,11 +326,11 @@ function OfficialSchedulePrintView({ data }: { data: ReportData }) {
                 <td colSpan={7} style={{ border: 'none', padding: 0, verticalAlign: 'top' }}>
                   <div style={{ borderBottom: '2px solid #cbd5e1', paddingBottom: 12, marginBottom: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 20, flexWrap: 'wrap' }}>
-                      <img src="/hospital-logo.png" alt="شعار المستشفى" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+                      <img src="/hospital-logo.png" alt="شعار المركز" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
                       <div className="text-center" style={{ color: '#0f172a' }}>
                         <p style={{ fontSize: '0.95rem', fontWeight: 700, marginBottom: 2 }}>وزارة الصحة</p>
                         <p style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 2 }}>دائرة صحة النجف الأشرف</p>
-                        <p style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 0 }}>مستشفى الحكيم العام</p>
+                        <p style={{ fontSize: '0.85rem', fontWeight: 600, marginBottom: 0 }}>مركز الحكيم لأمراض الكلى</p>
                       </div>
                     </div>
                     <h2 style={{ fontSize: '1.2rem', fontWeight: 800, marginTop: 10, marginBottom: 2, textAlign: 'center', color: '#0f172a', borderBottom: '2px solid #334155', paddingBottom: 6 }}>
@@ -379,7 +379,7 @@ function OfficialSchedulePrintView({ data }: { data: ReportData }) {
               <p style={{ fontWeight: 700, color: '#334155', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>مسؤول القسم أو الوحدة</p>
             </div>
             <div style={{ flex: 1, minWidth: 0, textAlign: 'center', backgroundColor: '#f8fafc', border: `1px solid ${borderColor}`, borderRadius: 6, padding: '8px 10px' }}>
-              <p style={{ fontWeight: 700, color: '#334155', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>مدير المستشفى</p>
+              <p style={{ fontWeight: 700, color: '#334155', fontSize: '0.8rem', whiteSpace: 'nowrap' }}>مدير المركز</p>
             </div>
           </div>
         </div>

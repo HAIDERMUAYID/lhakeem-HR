@@ -239,7 +239,7 @@ export default function SettingsPage() {
             نظام إدارة الإجازات
           </h3>
           <p className="text-sm text-gray-500">
-            مستشفى الحكيم • نظام إدارة الإجازات والدوام والغيابات
+            مركز الحكيم لأمراض الكلى • نظام إدارة الإجازات والدوام والغيابات
           </p>
         </CardContent>
       </Card>

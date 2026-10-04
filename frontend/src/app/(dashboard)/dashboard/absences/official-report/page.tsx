@@ -283,9 +283,9 @@ export default function OfficialAbsenceReportPage() {
 
 /**
  * كشف الغيابات الرسمي — نسخة الطباعة
- * - الرأس: لون أزرق مؤسسي (بدون أخضر)، شعار المستشفى، عنوان التقرير بارز بحد سفلي
+ * - الرأس: لون أزرق مؤسسي (بدون أخضر)، شعار المركز، عنوان التقرير بارز بحد سفلي
  * - KPIs: بطاقات (أزرق، كهرماني، بنفسجي، رمادي)
- * - التذييل: يمين = مسؤول وحدة البصمة، يسار = مدير المستشفى / المسؤول الإداري
+ * - التذييل: يمين = مسؤول وحدة البصمة، يسار = مدير المركز / المسؤول الإداري
  */
 function OfficialReportPrintView({
   data,
@@ -334,13 +334,13 @@ function OfficialReportPrintView({
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 28, flexWrap: 'wrap' }}>
           <img
             src="/hospital-logo.png"
-            alt="شعار مستشفى الحكيم العام"
+            alt="شعار مركز الحكيم لأمراض الكلى"
             style={{ height: 112, width: 'auto', objectFit: 'contain' }}
           />
           <div className="text-center" style={{ color: '#0f172a' }}>
             <p style={{ fontSize: '1.1rem', fontWeight: 700, marginBottom: 4 }}>وزارة الصحة</p>
             <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 4 }}>دائرة صحة النجف الأشرف</p>
-            <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 0 }}>مستشفى الحكيم العام</p>
+            <p style={{ fontSize: '1rem', fontWeight: 600, marginBottom: 0 }}>مركز الحكيم لأمراض الكلى</p>
           </div>
         </div>
         <h2
@@ -430,7 +430,7 @@ function OfficialReportPrintView({
           className="flex-1 text-center rounded-lg"
           style={{ backgroundColor: '#f8fafc', border: '1px solid #cbd5e1', padding: 16 }}
         >
-          <p style={{ fontWeight: 700, color: '#334155' }}>مدير المستشفى</p>
+          <p style={{ fontWeight: 700, color: '#334155' }}>مدير المركز</p>
         </div>
       </div>
     </div>

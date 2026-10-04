@@ -42,7 +42,7 @@ export function AppLogo({ size = 44, animated = true, compact = false, className
       {!error && (
         <Image
           src={LOGO_SRC}
-          alt="شعار مستشفى الحكيم العام"
+          alt="شعار مركز الحكيم لأمراض الكلى"
           width={size * 2}
           height={size * 2}
           className="object-contain transition-opacity duration-300"

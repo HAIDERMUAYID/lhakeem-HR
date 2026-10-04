@@ -21,7 +21,7 @@ export function Header({ userName, sidebarTrigger }: { userName?: string; sideba
       <div className="flex items-center gap-3">
         {sidebarTrigger}
         <AppLogo size={36} compact animated className="hidden sm:flex shrink-0" />
-        <span className="text-sm text-gray-500 hidden sm:inline">نظام الموارد البشرية – مستشفى الحكيم العام</span>
+        <span className="text-sm text-gray-500 hidden sm:inline">نظام الموارد البشرية – مركز الحكيم لأمراض الكلى</span>
       </div>
       <div className="flex items-center gap-3">
         <Notifications />

@@ -28,7 +28,7 @@ import { AppLogo } from '@/components/layout/app-logo';
 import { CopyrightFooter } from '@/components/layout/copyright-footer';
 import { loginSchema, type LoginInput } from '@/lib/schemas';
 
-const SYSTEM_NAME = 'إدارة الموارد البشرية لمستشفى الحكيم العام';
+const SYSTEM_NAME = 'إدارة الموارد البشرية لمركز الحكيم لأمراض الكلى';
 
 /** مزايا النظام من القائمة الجانبية والنظام */
 const FEATURES = [

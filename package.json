@@ -1,7 +1,7 @@
 {
   "name": "alhakeem-hr",
   "version": "1.0.0",
-  "description": "نظام إدارة الإجازات والدوام والغيابات – مستشفى الحكيم",
+  "description": "نظام إدارة الإجازات والدوام والغيابات – مركز الحكيم لأمراض الكلى",
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:api\" \"npm run dev:web\"",

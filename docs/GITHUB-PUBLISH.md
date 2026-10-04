@@ -31,7 +31,7 @@ git init
 git add .
 
 # أول commit
-git commit -m "Initial commit: إدارة الموارد البشرية لمستشفى الحكيم العام"
+git commit -m "Initial commit: إدارة الموارد البشرية لمركز الحكيم لأمراض الكلى"
 
 # تسمية الفرع الرئيسي main
 git branch -M main
@@ -59,5 +59,5 @@ git push -u origin main
 
 ## ملاحظات
 
-- اسم النظام: **إدارة الموارد البشرية لمستشفى الحكيم العام**
+- اسم النظام: **إدارة الموارد البشرية لمركز الحكيم لأمراض الكلى**
 - المشروع يتضمن: `backend` (NestJS)، `frontend` (Next.js)، و`attendance-system` حسب الحاجة.

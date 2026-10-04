@@ -367,11 +367,11 @@ function LeaveReportPrintView({ data }: { data: ReportData }) {
       {/* Header */}
       <div style={{ borderBottom: `2px solid ${borderColor}`, paddingBottom: 12, marginBottom: 16 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 24, flexWrap: 'wrap' }}>
-          <img src="/hospital-logo.png" alt="شعار المستشفى" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
+          <img src="/hospital-logo.png" alt="شعار المركز" style={{ height: 56, width: 'auto', objectFit: 'contain' }} />
           <div className="text-center" style={{ color: '#0f172a' }}>
             <p style={{ fontSize: '1rem', fontWeight: 700, marginBottom: 2 }}>وزارة الصحة</p>
             <p style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 2 }}>دائرة صحة النجف الأشرف</p>
-            <p style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 0 }}>مستشفى الحكيم العام</p>
+            <p style={{ fontSize: '0.9rem', fontWeight: 600, marginBottom: 0 }}>مركز الحكيم لأمراض الكلى</p>
           </div>
         </div>
         <h1 style={{ fontSize: '1.25rem', fontWeight: 800, marginTop: 12, marginBottom: 4, textAlign: 'center', color: '#0f172a' }}>
@@ -445,7 +445,7 @@ function LeaveReportPrintView({ data }: { data: ReportData }) {
           <p style={{ fontSize: '0.8rem', marginBottom: 4 }}>التوقيع: _________________________</p>
         </div>
         <div style={{ flex: 1, textAlign: 'center', border: `1px solid ${borderColor}`, padding: 12, borderRadius: 4 }}>
-          <p style={{ fontWeight: 700, marginBottom: 8, fontSize: '0.9rem' }}>مدير المستشفى أو الإدارة</p>
+          <p style={{ fontWeight: 700, marginBottom: 8, fontSize: '0.9rem' }}>مدير المركز أو الإدارة</p>
           <p style={{ fontSize: '0.8rem', marginBottom: 4 }}>التوقيع: _________________________</p>
         </div>
       </div>

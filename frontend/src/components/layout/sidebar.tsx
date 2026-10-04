@@ -132,7 +132,7 @@ export function Sidebar({ open = true, onClose, mobile = false, collapsed = fals
           <AppLogo size={collapsed ? 40 : 48} compact={collapsed} animated />
           {!collapsed && (
             <div className="min-w-0">
-              <span className="text-base font-bold text-primary-800 block truncate">مستشفى الحكيم العام</span>
+              <span className="text-base font-bold text-primary-800 block truncate">مركز الحكيم لأمراض الكلى</span>
               <span className="text-xs text-gray-500 block truncate">نظام الموارد البشرية</span>
             </div>
           )}

@@ -15,7 +15,7 @@ export default function HomePage() {
           نظام إدارة الإجازات والدوام
         </h1>
         <p className="text-lg sm:text-xl text-gray-600 mb-8">
-          مستشفى الحكيم
+          مركز الحكيم لأمراض الكلى
         </p>
         <motion.div
           initial={{ opacity: 0 }}
