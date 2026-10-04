@@ -2,11 +2,12 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { Clock3, FileDown, Fingerprint, RefreshCw, Search } from 'lucide-react';
+import { Clock3, FileDown, FileSpreadsheet, Fingerprint, RefreshCw, Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiGet, apiPost } from '@/lib/api';
 import { downloadAttendancePdf, rosterMatchesStatus, type AttendancePdfLayout, type AttendanceStatusFilter } from '@/lib/attendance-pdf';
-import { hospitalClock, hospitalDateTime } from '@/lib/hospital-clock';
+import { downloadAttendanceExcel } from '@/lib/attendance-excel';
+import { clockFrom24, hospitalClock, hospitalDateTime } from '@/lib/hospital-clock';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -467,11 +468,26 @@ export default function AttendancePage() {
                 <Button variant="outline" size="sm" onClick={() => { const t = isoDate(new Date()); setFromDate(t); setToDate(t); }}>
                   اليوم
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => { setFromDate(shiftDate(isoDate(new Date()), -6)); setToDate(isoDate(new Date())); }}>
-                  7 أيام
+                <Button variant="outline" size="sm" onClick={() => {
+                  const now = new Date();
+                  setFromDate(isoDate(new Date(now.getFullYear(), now.getMonth(), 1)));
+                  setToDate(isoDate(now));
+                }}>
+                  هذا الشهر
                 </Button>
-                <Button variant="outline" size="sm" onClick={() => { setFromDate(shiftDate(isoDate(new Date()), -13)); setToDate(isoDate(new Date())); }}>
-                  14 يوماً
+                <Button variant="outline" size="sm" onClick={() => {
+                  const now = new Date();
+                  setFromDate(isoDate(new Date(now.getFullYear(), now.getMonth() - 1, 1)));
+                  setToDate(isoDate(new Date(now.getFullYear(), now.getMonth(), 0)));
+                }}>
+                  الشهر السابق
+                </Button>
+                <Button variant="outline" size="sm" onClick={() => {
+                  const now = new Date();
+                  setFromDate(isoDate(new Date(now.getFullYear(), 0, 1)));
+                  setToDate(isoDate(now));
+                }}>
+                  هذه السنة
                 </Button>
                 <div className="ms-auto flex flex-wrap gap-1 rounded-full bg-gray-100 p-1">
                   {viewTabs.map((tab) => (
@@ -660,6 +676,25 @@ export default function AttendancePage() {
                   <span className="text-sm font-normal text-gray-500">({filteredRoster.length})</span>
                 </h2>
                 <div className="flex flex-wrap gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1"
+                    disabled={!filteredRoster.length}
+                    onClick={() => {
+                      if (!day) return;
+                      downloadAttendanceExcel({
+                        deviceName: day.deviceName,
+                        fromDate: day.fromDate,
+                        toDate: day.toDate,
+                        rows: filteredRoster,
+                      });
+                      toast.success('تم تنزيل ملف الإكسل');
+                    }}
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    إكسل
+                  </Button>
                   {(['official', 'detailed'] as const).map((layout) => (
                     <Button
                       key={layout}
@@ -748,7 +783,7 @@ export default function AttendancePage() {
                             {row.status === 'REST' || row.status === 'LEAVE' || row.status === 'HOLIDAY'
                               ? '—'
                               : row.scheduledStart && row.scheduledEnd
-                                ? `${row.scheduledStart} – ${row.scheduledEnd}`
+                                ? `${clockFrom24(row.scheduledStart)} – ${clockFrom24(row.scheduledEnd)}`
                                 : '—'}
                           </td>
                           <td className="px-3 py-2 font-mono">{formatTime(row.checkInAt)}</td>

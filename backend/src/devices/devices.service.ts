@@ -1297,8 +1297,8 @@ export class DevicesService {
     }
     const spanDays =
       Math.floor((rangeTo.getTime() - rangeFrom.getTime()) / 86400000) + 1;
-    if (spanDays > 31) {
-      throw new BadRequestException('نطاق الكشف يقتصر على 31 يوماً');
+    if (spanDays > 366) {
+      throw new BadRequestException('يمكن اختيار أي فترة حتى سنة كاملة');
     }
     const rangeEnd = endOfLocalDay(rangeTo);
     const liveKey = `${deviceId}|${localDateKey(rangeFrom)}|${localDateKey(rangeTo)}`;

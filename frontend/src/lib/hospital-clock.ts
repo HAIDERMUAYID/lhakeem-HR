@@ -19,12 +19,25 @@ function pick(list: Intl.DateTimeFormatPart[], type: string) {
   return list.find((part) => part.type === type)?.value ?? '00';
 }
 
+function to12(hour24: number, minute: string, second?: string) {
+  const period = hour24 < 12 ? 'صباحاً' : 'مساءً';
+  const hour = hour24 % 12 || 12;
+  const clock = second ? `${hour}:${minute}:${second}` : `${hour}:${minute}`;
+  return `${clock} ${period}`;
+}
+
+export function clockFrom24(hhmm: string | null | undefined) {
+  if (!hhmm) return '—';
+  const match = hhmm.trim().match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return hhmm;
+  return to12(Number(match[1]), match[2]);
+}
+
 export function hospitalClock(iso: string | null | undefined, withSeconds = false) {
   if (!iso) return '—';
   const list = parts(iso, withSeconds);
   if (!list) return '—';
-  const hm = `${pick(list, 'hour')}:${pick(list, 'minute')}`;
-  return withSeconds ? `${hm}:${pick(list, 'second')}` : hm;
+  return to12(Number(pick(list, 'hour')), pick(list, 'minute'), withSeconds ? pick(list, 'second') : undefined);
 }
 
 export function hospitalDateKey(iso: string) {

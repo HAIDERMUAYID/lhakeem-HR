@@ -1,6 +1,6 @@
 import { toCanvas } from 'html-to-image';
 import { jsPDF } from 'jspdf';
-import { hospitalClock } from '@/lib/hospital-clock';
+import { clockFrom24, hospitalClock } from '@/lib/hospital-clock';
 
 export type AttendanceStatusFilter =
   | 'all'
@@ -110,7 +110,7 @@ function duration(mins: number | null | undefined) {
 
 function scheduleLabel(row: AttendancePdfRow) {
   if (row.status === 'REST' || row.status === 'LEAVE' || row.status === 'HOLIDAY') return '—';
-  if (row.scheduledStart && row.scheduledEnd) return `${row.scheduledStart} – ${row.scheduledEnd}`;
+  if (row.scheduledStart && row.scheduledEnd) return `${clockFrom24(row.scheduledStart)} – ${clockFrom24(row.scheduledEnd)}`;
   return '—';
 }
 
