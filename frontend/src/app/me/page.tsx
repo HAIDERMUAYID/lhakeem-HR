@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from 'framer-motion';
 import { Bell, CalendarDays, ChevronLeft, ChevronRight, Clock3, Fingerprint, LogOut, Palmtree, RefreshCw, UserRound, X } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import { downloadAttendancePdf, type AttendancePdfRow } from '@/lib/attendance-pdf';
+import { hospitalClock, hospitalDateKey } from '@/lib/hospital-clock';
 
 type DayRow = {
   date: string;
@@ -71,22 +72,16 @@ type Tab = 'today' | 'punches' | 'schedule' | 'leaves' | 'account';
 type Alert = { id: string; tone: 'rose' | 'amber' | 'sky' | 'emerald'; title: string; body: string };
 
 function clock(iso: string | null) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  return hospitalClock(iso);
 }
 
 function stamp(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}:${String(d.getSeconds()).padStart(2, '0')}`;
+  const value = hospitalClock(iso, true);
+  return value === '—' ? iso : value;
 }
 
 function dayKey(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso.slice(0, 10);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  return hospitalDateKey(iso);
 }
 
 function greeting() {

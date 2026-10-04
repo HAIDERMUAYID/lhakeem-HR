@@ -1,5 +1,7 @@
 /** مقارنة الحضور الفعلي بجدول الدوام لنفس اليوم التقويمي. */
 
+import { hospitalAtClock } from '../common/hospital-time';
+
 export function timeToMinutes(t: string | null | undefined): number | null {
   if (!t) return null;
   const m = t.trim().match(/^(\d{1,2}):(\d{2})/);
@@ -32,11 +34,7 @@ export function netExpectedMinutes(
 }
 
 function atClock(day: Date, hhmm: string, addDays = 0): Date | null {
-  const mins = timeToMinutes(hhmm);
-  if (mins == null) return null;
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return new Date(day.getFullYear(), day.getMonth(), day.getDate() + addDays, h, m, 0, 0);
+  return hospitalAtClock(day, hhmm, addDays);
 }
 
 function diffMinutes(later: Date, earlier: Date): number {
@@ -60,6 +58,8 @@ export function evaluateAgainstSchedule(params: {
   endTime?: string | null;
   breakStart?: string | null;
   breakEnd?: string | null;
+  arrivalGraceMinutes?: number | null;
+  departureGraceMinutes?: number | null;
   checkInAt: Date | null;
   checkOutAt: Date | null;
   displayMode: 'pair' | 'single' | null;
@@ -93,10 +93,13 @@ export function evaluateAgainstSchedule(params: {
   let earlyLeaveMinutes = 0;
   let overtimeMinutes = 0;
 
+  const arrivalGrace = Math.max(0, params.arrivalGraceMinutes ?? 0);
+  const departureGrace = Math.max(0, params.departureGraceMinutes ?? 0);
+
   if (scheduledStart && params.checkInAt) {
     const due = atClock(params.workDate, scheduledStart);
     if (due && params.checkInAt.getTime() > due.getTime()) {
-      lateMinutes = diffMinutes(params.checkInAt, due);
+      lateMinutes = Math.max(0, diffMinutes(params.checkInAt, due) - arrivalGrace);
     }
   }
 
@@ -107,7 +110,7 @@ export function evaluateAgainstSchedule(params: {
     const dueEnd = atClock(params.workDate, scheduledEnd, overnight ? 1 : 0);
     if (dueEnd) {
       if (params.checkOutAt.getTime() < dueEnd.getTime()) {
-        earlyLeaveMinutes = diffMinutes(dueEnd, params.checkOutAt);
+        earlyLeaveMinutes = Math.max(0, diffMinutes(dueEnd, params.checkOutAt) - departureGrace);
       } else {
         overtimeMinutes = diffMinutes(params.checkOutAt, dueEnd);
       }

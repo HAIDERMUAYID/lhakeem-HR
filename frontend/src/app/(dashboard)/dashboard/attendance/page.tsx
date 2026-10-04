@@ -6,6 +6,7 @@ import { Clock3, FileDown, Fingerprint, RefreshCw, Search } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { apiGet, apiPost } from '@/lib/api';
 import { downloadAttendancePdf, rosterMatchesStatus, type AttendancePdfLayout, type AttendanceStatusFilter } from '@/lib/attendance-pdf';
+import { hospitalClock, hospitalDateTime } from '@/lib/hospital-clock';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -99,18 +100,11 @@ function shiftDate(date: string, days: number) {
 }
 
 function formatTime(iso: string | null) {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return hospitalClock(iso);
 }
 
 function formatDateTime(iso: string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return iso;
-  const pad = (n: number) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+  return hospitalDateTime(iso);
 }
 
 function formatDuration(mins: number | null | undefined) {

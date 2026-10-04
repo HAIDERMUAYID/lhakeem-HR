@@ -1,5 +1,7 @@
 /** أول بصمة في اليوم = حضور، آخر بصمة = انصراف. فرق أقل من ساعتين = بصمة واحدة في الكشف. */
 
+import { hospitalDayKey, hospitalDayNoon, hospitalParts, parseHospitalWallTime } from '../common/hospital-time';
+
 export const MIN_PAIR_MINUTES = 120;
 
 export type PunchLog = {
@@ -21,17 +23,7 @@ export type DailyAttendanceRow = {
 };
 
 export function parseAttlogTimestamp(raw: string): Date | null {
-  const m = raw.trim().match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2}):(\d{2})/);
-  if (!m) return null;
-  const d = new Date(
-    Number(m[1]),
-    Number(m[2]) - 1,
-    Number(m[3]),
-    Number(m[4]),
-    Number(m[5]),
-    Number(m[6]),
-  );
-  return Number.isNaN(d.getTime()) ? null : d;
+  return parseHospitalWallTime(raw);
 }
 
 export function parseAttlogBody(body: string): { pin: string; scannedAt: Date }[] {
@@ -57,7 +49,7 @@ export function serialFromQuery(rawQuery: string | null | undefined): string | u
 }
 
 function classifySingle(at: Date): Pick<DailyAttendanceRow, 'checkInAt' | 'checkOutAt' | 'validationReason'> {
-  const hour = at.getHours();
+  const hour = hospitalParts(at).hour;
   if (hour < 12) {
     return { checkInAt: at, checkOutAt: null, validationReason: 'بصمة واحدة' };
   }
@@ -67,9 +59,7 @@ function classifySingle(at: Date): Pick<DailyAttendanceRow, 'checkInAt' | 'check
 export function computeDailyAttendance(logs: PunchLog[]): DailyAttendanceRow[] {
   const grouped = new Map<string, { employeeId: string; logs: Date[] }>();
   for (const log of logs) {
-    const day = new Date(log.scannedAt);
-    day.setHours(0, 0, 0, 0);
-    const key = `${log.employeeId}|${day.toISOString()}`;
+    const key = `${log.employeeId}|${hospitalDayKey(log.scannedAt)}`;
     const ex = grouped.get(key);
     if (!ex) grouped.set(key, { employeeId: log.employeeId, logs: [log.scannedAt] });
     else ex.logs.push(log.scannedAt);
@@ -80,8 +70,7 @@ export function computeDailyAttendance(logs: PunchLog[]): DailyAttendanceRow[] {
     const sorted = [...group.logs].sort((a, b) => a.getTime() - b.getTime());
     const first = sorted[0];
     if (!first) continue;
-    const workDate = new Date(first);
-    workDate.setHours(0, 0, 0, 0);
+    const workDate = hospitalDayNoon(hospitalDayKey(first));
     const punchCount = sorted.length;
 
     if (sorted.length === 1) {
