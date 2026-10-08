@@ -1,6 +1,7 @@
 import { Injectable, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { WorkType } from '@prisma/client';
+import { isMonthDaysPattern, parseMonthDays } from '../common/schedule-day.util';
 
 const SCHEDULES_APPROVE = 'SCHEDULES_APPROVE';
 const ADMIN = 'ADMIN';
@@ -52,6 +53,7 @@ export class WorkSchedulesService {
   /**
    * حساب أيام الدوام الفعلية داخل الشهر:
    * - دوام ثابت: أيام أسبوعية (0=السبت..6=الجمعة) عدد مراتها في الشهر
+   * - أيام محددة: أرقام أيام الشهر المختارة من التقويم
    * - تناوبي 1x1/1x2/1x3: من تاريخ بداية الدورة، النمط يعطي تواريخ العمل
    */
   private getWorkDaysInMonth(
@@ -67,6 +69,15 @@ export class WorkSchedulesService {
 
     const inMonth = (d: Date) => d >= firstDay && d <= lastDay;
 
+    if (isMonthDaysPattern(shiftPattern)) {
+      const lastDate = lastDay.getDate();
+      const dates = parseMonthDays(daysOfWeek)
+        .filter((day) => day <= lastDate)
+        .map((day) => new Date(year, month - 1, day));
+      const display = dates.length ? dates.map((d) => String(d.getDate())).join('، ') : '—';
+      return { dates, display, count: dates.length };
+    }
+
     if (workType === 'MORNING' || (workType === 'SHIFTS' && shiftPattern === 'FIXED')) {
       const weekdays = daysOfWeek.split(',').map((s) => parseInt(s.trim(), 10)).filter((n) => !Number.isNaN(n) && n >= 0 && n <= 6);
       const dates: Date[] = [];
@@ -78,7 +89,7 @@ export class WorkSchedulesService {
       return { dates, display, count: dates.length };
     }
 
-    if (workType === 'SHIFTS' && shiftPattern && shiftPattern !== 'FIXED' && cycleStartDate) {
+    if (workType === 'SHIFTS' && shiftPattern && shiftPattern !== 'FIXED' && !isMonthDaysPattern(shiftPattern) && cycleStartDate) {
       const step = shiftPattern === '1x1' ? 2 : shiftPattern === '1x2' ? 3 : shiftPattern === '1x3' ? 4 : 2;
       const dates: Date[] = [];
       let cur = new Date(cycleStartDate);

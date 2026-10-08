@@ -12,7 +12,7 @@ export class AbsencesController {
   constructor(private absencesService: AbsencesService) {}
 
   @Get()
-  @RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.FINGERPRINT_OFFICER, PERMISSIONS.FINGERPRINT_MANAGER)
+  @RequirePermissions(PERMISSIONS.ABSENCES_VIEW)
   async findAll(
     @Query('page') page = '1',
     @Query('limit') limit = '20',

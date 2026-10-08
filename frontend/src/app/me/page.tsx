@@ -163,6 +163,7 @@ function patternLabel(pattern: string | null) {
   if (pattern === '1x2') return '١×٢ · يوم عمل ويومان راحة';
   if (pattern === '1x3') return '١×٣ · يوم عمل وثلاثة راحة';
   if (pattern === 'FIXED') return 'أيام أسبوع ثابتة';
+  if (pattern === 'MONTH_DAYS') return 'أيام محددة من الشهر';
   return '';
 }
 
@@ -372,7 +373,11 @@ function DutyBoard({
           <p className="px-5 py-3 text-sm leading-6 text-slate-600">
             {[
               patternLabel(schedule.shiftPattern),
-              schedule.workType === 'MORNING' || schedule.shiftPattern === 'FIXED' ? workDaysLabel(schedule.daysOfWeek) : '',
+              schedule.workType === 'MORNING' || schedule.shiftPattern === 'FIXED'
+                ? workDaysLabel(schedule.daysOfWeek)
+                : schedule.shiftPattern === 'MONTH_DAYS'
+                  ? `أيام ${schedule.daysOfWeek.split(',').filter(Boolean).join('، ')}`
+                  : '',
               schedule.breakStart && schedule.breakEnd ? `استراحة ${schedule.breakStart}–${schedule.breakEnd}` : '',
             ].filter(Boolean).join(' · ') || 'أوقات دوامك لهذا الشهر'}
           </p>

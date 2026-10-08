@@ -7,6 +7,7 @@ import { matchesPunch, relativeAgo, weekdayName, type PunchLogRow } from '@/lib/
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { useHasPermission } from '@/hooks/use-permissions';
 
 type MatchFilter = 'all' | 'matched' | 'unmatched';
 
@@ -23,6 +24,7 @@ export function PunchLog({
   onAssign: (pin: string) => void;
   onSelectEmployee: (employeeId: string) => void;
 }) {
+  const canAssign = useHasPermission('PINS_ASSIGN');
   const [query, setQuery] = useState('');
   const [match, setMatch] = useState<MatchFilter>('all');
   const [limit, setLimit] = useState(live ? 40 : 200);
@@ -113,7 +115,7 @@ export function PunchLog({
                       </td>
                       <td className="px-3 py-2">{punch.unitName || '—'}</td>
                       <td className="px-3 py-2">
-                        {!punch.matched ? (
+                        {!punch.matched && canAssign ? (
                           <Button size="sm" variant="outline" onClick={() => onAssign(punch.fingerprintId)}>
                             تعريف
                           </Button>

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { isRestDayFromSchedule } from '../common/schedule-day.util';
 
 /** هل التاريخ يوم عمل حسب الجدول؟ */
 function isWorkDay(
@@ -9,39 +10,12 @@ function isWorkDay(
   daysOfWeek: string,
   cycleStartDate: Date | null,
 ): boolean {
-  const year = date.getFullYear();
-  const month = date.getMonth() + 1;
-  const firstDay = new Date(year, month - 1, 1);
-  const lastDay = new Date(year, month - 1 + 1, 0);
-  const inMonth = (d: Date) => d >= firstDay && d <= lastDay;
-
-  if (workType === 'MORNING' || (workType === 'SHIFTS' && shiftPattern === 'FIXED')) {
-    const weekdays = daysOfWeek
-      .split(',')
-      .map((s) => parseInt(s.trim(), 10))
-      .filter((n) => !Number.isNaN(n) && n >= 0 && n <= 6);
-    const dayOfWeek = (date.getDay() + 1) % 7;
-    return weekdays.includes(dayOfWeek);
-  }
-
-  if (workType === 'SHIFTS' && shiftPattern && shiftPattern !== 'FIXED' && cycleStartDate) {
-    const step =
-      shiftPattern === '1x1' ? 2 : shiftPattern === '1x2' ? 3 : shiftPattern === '1x3' ? 4 : 2;
-    const d = new Date(date);
-    d.setHours(0, 0, 0, 0);
-    let cur = new Date(cycleStartDate);
-    cur.setHours(0, 0, 0, 0);
-    const end = new Date(lastDay);
-    end.setDate(end.getDate() + 1);
-    while (cur < end) {
-      if (cur.getTime() === d.getTime()) return true;
-      if (cur > d) break;
-      cur.setDate(cur.getDate() + step);
-    }
-    return false;
-  }
-
-  return false;
+  return !isRestDayFromSchedule(date, {
+    workType,
+    shiftPattern,
+    daysOfWeek,
+    cycleStartDate,
+  });
 }
 
 /** تحويل "HH:mm" إلى دقائق من منتصف الليل */

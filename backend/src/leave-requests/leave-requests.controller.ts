@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Delete, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
+import { Controller, Get, Post, Patch, Delete, Body, Param, Query, UseGuards, BadRequestException } from '@nestjs/common';
 import { LeaveRequestsService } from './leave-requests.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PermissionsGuard } from '../auth/guards/permissions.guard';
@@ -8,7 +8,8 @@ import { PERMISSIONS } from '../auth/permissions';
 import { LeaveStatus } from '@prisma/client';
 
 @Controller('leave-requests')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, PermissionsGuard)
+@RequirePermissions(PERMISSIONS.LEAVES_VIEW)
 export class LeaveRequestsController {
   constructor(private leaveRequestsService: LeaveRequestsService) {}
 
@@ -72,7 +73,6 @@ export class LeaveRequestsController {
   }
 
   @Get('official-report')
-  @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.LEAVES_VIEW, PERMISSIONS.LEAVES_PRINT, PERMISSIONS.REPORTS_VIEW)
   async getOfficialReport(
     @Query('fromDate') fromDate: string,
@@ -131,6 +131,7 @@ export class LeaveRequestsController {
   }
 
   @Post()
+  @RequirePermissions(PERMISSIONS.LEAVES_CREATE)
   async create(
     @Body() dto: {
       employeeId: string;
@@ -154,6 +155,7 @@ export class LeaveRequestsController {
   }
 
   @Post('cumulative-baseline')
+  @RequirePermissions(PERMISSIONS.LEAVES_APPROVE, PERMISSIONS.SETTINGS_MANAGE)
   async setCumulativeBaseline(
     @Body()
     dto: {
@@ -180,22 +182,19 @@ export class LeaveRequestsController {
   }
 
   @Post(':id/approve')
-  @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.LEAVES_APPROVE)
   async approve(@Param('id') id: string, @CurrentUser() user: { id: string }) {
     return this.leaveRequestsService.updateStatus(id, 'APPROVED', user.id);
   }
 
   @Post(':id/reject')
-  @UseGuards(PermissionsGuard)
   @RequirePermissions(PERMISSIONS.LEAVES_APPROVE)
   async reject(@Param('id') id: string, @CurrentUser() user: { id: string }) {
     return this.leaveRequestsService.updateStatus(id, 'REJECTED', user.id);
   }
 
   @Post(':id/shorten-calendar-day')
-  @UseGuards(PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.LEAVES_APPROVE, PERMISSIONS.ADMIN)
+  @RequirePermissions(PERMISSIONS.LEAVES_APPROVE)
   async shortenCalendarDay(@Param('id') id: string, @Body() body: { calendarDate?: string }) {
     if (!body?.calendarDate?.trim()) {
       throw new BadRequestException('calendarDate مطلوب');
@@ -203,9 +202,32 @@ export class LeaveRequestsController {
     return this.leaveRequestsService.shortenLeaveAtCalendarDay(id, body.calendarDate.trim());
   }
 
+  @Patch(':id')
+  @RequirePermissions(PERMISSIONS.LEAVES_CREATE, PERMISSIONS.LEAVES_APPROVE)
+  async update(
+    @Param('id') id: string,
+    @Body()
+    dto: {
+      leaveTypeId?: string;
+      startDate?: string;
+      endDate?: string;
+      daysCount?: number;
+      hoursCount?: number;
+      reason?: string | null;
+    },
+  ) {
+    return this.leaveRequestsService.update(id, {
+      leaveTypeId: dto.leaveTypeId,
+      startDate: dto.startDate ? new Date(dto.startDate) : undefined,
+      endDate: dto.endDate ? new Date(dto.endDate) : undefined,
+      daysCount: dto.daysCount,
+      hoursCount: dto.hoursCount,
+      reason: dto.reason,
+    });
+  }
+
   @Delete(':id')
-  @UseGuards(PermissionsGuard)
-  @RequirePermissions(PERMISSIONS.LEAVES_APPROVE, PERMISSIONS.ADMIN)
+  @RequirePermissions(PERMISSIONS.LEAVES_APPROVE)
   async delete(@Param('id') id: string) {
     return this.leaveRequestsService.delete(id);
   }

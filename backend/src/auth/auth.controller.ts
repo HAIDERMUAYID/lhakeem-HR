@@ -4,7 +4,7 @@ import { IsString, MinLength } from 'class-validator';
 import { AuthService } from './auth.service';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { CurrentUser } from './decorators/user.decorator';
-import { PERMISSIONS, PERMISSION_LABELS, PERMISSION_DEPENDENCIES, PERMISSION_MODULES } from './permissions';
+import { PERMISSION_LABELS, PERMISSION_DEPENDENCIES, PERMISSION_MODULES, PERMISSION_PRESETS } from './permissions';
 
 class LoginDto {
   @IsString()
@@ -60,6 +60,7 @@ export class AuthController {
       list: Object.entries(PERMISSION_LABELS).map(([code, label]) => ({ code, label })),
       dependencies: PERMISSION_DEPENDENCIES,
       modules: PERMISSION_MODULES,
+      presets: PERMISSION_PRESETS,
     };
   }
 }

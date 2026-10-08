@@ -7,7 +7,14 @@ import { PERMISSIONS } from '../auth/permissions';
 
 @Controller('departments')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.DEPARTMENTS_MANAGE)
+@RequirePermissions(
+  PERMISSIONS.DEPARTMENTS_VIEW,
+  PERMISSIONS.DEPARTMENTS_MANAGE,
+  PERMISSIONS.EMPLOYEES_VIEW,
+  PERMISSIONS.LEAVES_VIEW,
+  PERMISSIONS.SCHEDULES_VIEW,
+  PERMISSIONS.ATTENDANCE_VIEW,
+)
 export class DepartmentsController {
   constructor(private departmentsService: DepartmentsService) {}
 
@@ -33,6 +40,7 @@ export class DepartmentsController {
   }
 
   @Post()
+  @RequirePermissions(PERMISSIONS.DEPARTMENTS_MANAGE)
   async create(
     @Body() dto: { name: string; code?: string; description?: string; managerUserId?: string | null },
   ) {
@@ -40,6 +48,7 @@ export class DepartmentsController {
   }
 
   @Put(':id')
+  @RequirePermissions(PERMISSIONS.DEPARTMENTS_MANAGE)
   async update(
     @Param('id') id: string,
     @Body() dto: { name?: string; code?: string; description?: string; isActive?: boolean; managerUserId?: string | null },

@@ -1,11 +1,26 @@
 import { WorkType } from '@prisma/client';
 
+export const MONTH_DAYS_PATTERN = 'MONTH_DAYS';
+
 export type ScheduleRestInput = {
-  workType: WorkType;
+  workType: WorkType | string;
   shiftPattern: string | null;
   daysOfWeek: string;
   cycleStartDate: Date | null;
 };
+
+export function isMonthDaysPattern(shiftPattern: string | null | undefined): boolean {
+  return shiftPattern === MONTH_DAYS_PATTERN;
+}
+
+/** أيام الشهر المختارة (1–31) المخزّنة في daysOfWeek عند نمط MONTH_DAYS */
+export function parseMonthDays(daysOfWeek: string | null | undefined): number[] {
+  if (!daysOfWeek) return [];
+  return daysOfWeek
+    .split(',')
+    .map((s) => parseInt(s.trim(), 10))
+    .filter((n) => Number.isFinite(n) && n >= 1 && n <= 31);
+}
 
 /**
  * يوم الاستراحة: السبت=0، الأحد=1، ... الجمعة=6 في daysOfWeek
@@ -15,6 +30,12 @@ export type ScheduleRestInput = {
 export function isRestDayFromSchedule(date: Date, schedule: ScheduleRestInput): boolean {
   const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 0, 0, 0, 0);
   const jsDay = date.getDay();
+
+  if (isMonthDaysPattern(schedule.shiftPattern)) {
+    const days = parseMonthDays(schedule.daysOfWeek);
+    if (days.length === 0) return true;
+    return !days.includes(date.getDate());
+  }
 
   if (schedule.workType === 'MORNING' || (schedule.workType === 'SHIFTS' && schedule.shiftPattern === 'FIXED')) {
     const dayIndex = (jsDay + 1) % 7;

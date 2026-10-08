@@ -360,8 +360,8 @@ model WorkSchedule {
   year           Int            @map("year")
   month          Int            @map("month")   // 1–12
   workType       WorkType       @map("work_type")
-  shiftPattern   String?        @map("shift_pattern")   // 1x1 | 1x2 | 1x3 | FIXED | null (صباحي)
-  daysOfWeek     String         @map("days_of_week")   // FIXED/صباحي: "0,1,2,3,4"
+  shiftPattern   String?        @map("shift_pattern")   // 1x1 | 1x2 | 1x3 | FIXED | MONTH_DAYS | null (صباحي)
+  daysOfWeek     String         @map("days_of_week")   // FIXED/صباحي: "0,1,2,3,4" | MONTH_DAYS: "1,3,5,9"
   cycleStartDate DateTime?      @map("cycle_start_date") // للخفر 1x1,1x2,1x3: أول يوم عمل
   startTime      String         @map("start_time")
   endTime        String         @map("end_time")

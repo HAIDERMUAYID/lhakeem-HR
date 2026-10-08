@@ -7,7 +7,7 @@ import { FingerprintCalendarService } from './fingerprint-calendar.service';
 
 @Controller('fingerprint-calendar')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.FINGERPRINT_OFFICER, PERMISSIONS.FINGERPRINT_MANAGER)
+@RequirePermissions(PERMISSIONS.ATTENDANCE_VIEW, PERMISSIONS.DEVICES_VIEW)
 export class FingerprintCalendarController {
   constructor(private service: FingerprintCalendarService) {}
 

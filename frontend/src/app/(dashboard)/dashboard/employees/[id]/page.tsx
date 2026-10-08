@@ -549,15 +549,25 @@ export default function EmployeeProfilePage() {
                 <InfoRow
                   icon={employee.workSchedule.workType === 'SHIFTS' ? Moon : Sun}
                   label="نوع الدوام"
-                  value={WORK_TYPE_LABEL[employee.workSchedule.workType] ?? employee.workSchedule.workType}
+                  value={
+                    employee.workSchedule.shiftPattern === 'MONTH_DAYS'
+                      ? 'أيام محددة'
+                      : (WORK_TYPE_LABEL[employee.workSchedule.workType] ?? employee.workSchedule.workType)
+                  }
                 />
                 <InfoRow label="الحالة" value={employee.workSchedule.status === 'APPROVED' ? 'معتمد' : 'معلق'} />
                 <InfoRow label="من" value={employee.workSchedule.startTime} />
                 <InfoRow label="إلى" value={employee.workSchedule.endTime} />
-                {employee.workSchedule.daysOfWeek && (
+                {employee.workSchedule.shiftPattern === 'MONTH_DAYS' && employee.workSchedule.daysOfWeek && (
+                  <InfoRow
+                    label="أيام الشهر"
+                    value={employee.workSchedule.daysOfWeek.split(',').filter(Boolean).join('، ')}
+                  />
+                )}
+                {employee.workSchedule.daysOfWeek && employee.workSchedule.shiftPattern !== 'MONTH_DAYS' && (
                   <InfoRow label="أيام العمل" value={employee.workSchedule.daysOfWeek} />
                 )}
-                {employee.workSchedule.shiftPattern && (
+                {employee.workSchedule.shiftPattern && employee.workSchedule.shiftPattern !== 'MONTH_DAYS' && (
                   <InfoRow label="نمط التناوب" value={employee.workSchedule.shiftPattern} />
                 )}
               </div>

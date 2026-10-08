@@ -1,189 +1,226 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { motion } from 'framer-motion';
+import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Users, Calendar, UserX, Building2, ChevronLeft, Clock, TrendingUp } from 'lucide-react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  Building2,
+  CalendarPlus,
+  Clock,
+  Fingerprint,
+  FileBarChart,
+  RefreshCw,
+  UserPlus,
+  UserX,
+  Users,
+} from 'lucide-react';
 import { apiGet } from '@/lib/api';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { PageSkeleton } from '@/components/shared/page-skeleton';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { hasAnyPermission } from '@/lib/permissions';
+import { Button } from '@/components/ui/button';
+import { PageSkeleton } from '@/components/shared/page-skeleton';
+import { KpiStrip, type KpiCard } from './_components/kpi-strip';
+import { WorkBoard } from './_components/work-board';
+import { formatArLongDate } from './_lib';
 
-const COLORS = ['#0F4C81', '#2D7AB8', '#0D9488', '#D97706'];
+type Session = { name: string; permissions: string[] };
 
-const stats = [
-  { title: 'الموظفين', key: 'employees', href: '/dashboard/employees', icon: Users, color: 'from-primary-500 to-primary-700', bg: 'bg-primary-50', permission: 'EMPLOYEES_VIEW' as const },
-  { title: 'الأقسام', key: 'departments', href: '/dashboard/departments', icon: Building2, color: 'from-green-500 to-green-700', bg: 'bg-green-50', permission: 'DEPARTMENTS_MANAGE' as const },
-  { title: 'إجازات قيد الانتظار', key: 'leaves', href: '/dashboard/leaves', icon: Clock, color: 'from-amber-500 to-amber-700', bg: 'bg-amber-50', permission: 'LEAVES_VIEW' as const },
-  { title: 'غيابات الشهر', key: 'absences', href: '/dashboard/absences', icon: UserX, color: 'from-violet-500 to-violet-700', bg: 'bg-violet-50', permission: ['FINGERPRINT_OFFICER', 'FINGERPRINT_MANAGER'] as const },
+type EmpStats = { total: number; active: number; inactive: number };
+type DeptStats = { total: number; active: number };
+type LeaveStats = { total: number; pending: number; approved: number; rejected: number };
+
+const QUICK_ACTIONS = [
+  {
+    href: '/dashboard/leaves',
+    label: 'طلب إجازة',
+    icon: CalendarPlus,
+    permission: 'LEAVES_CREATE' as const,
+  },
+  {
+    href: '/dashboard/employees',
+    label: 'موظف جديد',
+    icon: UserPlus,
+    permission: 'EMPLOYEES_MANAGE' as const,
+  },
+  {
+    href: '/dashboard/attendance',
+    label: 'حضور اليوم',
+    icon: Fingerprint,
+    permission: 'ATTENDANCE_VIEW' as const,
+  },
+  {
+    href: '/dashboard/reports',
+    label: 'التقارير',
+    icon: FileBarChart,
+    permission: 'REPORTS_VIEW' as const,
+  },
 ];
 
 export default function DashboardPage() {
-  const [userName, setUserName] = useState<string>('');
-  const [permissions, setPermissions] = useState<string[]>([]);
+  const queryClient = useQueryClient();
+  const [session, setSession] = useState<Session | null>(null);
 
   useEffect(() => {
     try {
-      const u = localStorage.getItem('user');
-      const parsed = u ? JSON.parse(u) : null;
-      setUserName(parsed?.name ?? '');
-      setPermissions(parsed?.permissions ?? []);
+      const parsed = JSON.parse(localStorage.getItem('user') || 'null');
+      setSession({
+        name: parsed?.name ?? '',
+        permissions: parsed?.permissions ?? [],
+      });
     } catch {
-      setUserName('');
-      setPermissions([]);
+      setSession({ name: '', permissions: [] });
     }
   }, []);
+
+  const permissions = session?.permissions ?? [];
+  const canEmployees = hasAnyPermission(permissions, 'EMPLOYEES_VIEW');
+  const canDepartments = hasAnyPermission(permissions, 'DEPARTMENTS_VIEW');
+  const canLeaves = hasAnyPermission(permissions, 'LEAVES_VIEW');
+  const canAbsences = hasAnyPermission(permissions, 'ABSENCES_VIEW');
 
   const now = new Date();
   const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
   const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+  const monthLabel = now.toLocaleDateString('ar-IQ', {
+    month: 'long',
+    year: 'numeric',
+    timeZone: 'Asia/Baghdad',
+  });
 
-  const { data: employees } = useQuery({
+  const empStats = useQuery({
     queryKey: ['employees-stats'],
-    queryFn: () => apiGet<{ total: number }>('/api/employees?page=1&limit=1'),
+    enabled: !!session && canEmployees,
+    queryFn: () => apiGet<EmpStats>('/api/employees/stats'),
   });
-  const { data: departments } = useQuery({
-    queryKey: ['departments'],
-    queryFn: () => apiGet<unknown[]>('/api/departments'),
+  const deptStats = useQuery({
+    queryKey: ['departments-stats'],
+    enabled: !!session && canDepartments,
+    queryFn: () => apiGet<DeptStats>('/api/departments/stats'),
   });
-  const { data: leaveRequests } = useQuery({
-    queryKey: ['leave-requests-pending'],
-    queryFn: () => apiGet<{ data: { status: string }[] }>('/api/leave-requests?limit=500'),
+  const leaveStats = useQuery({
+    queryKey: ['leave-requests-stats'],
+    enabled: !!session && canLeaves,
+    queryFn: () => apiGet<LeaveStats>('/api/leave-requests/stats'),
   });
-  const { data: absencesData } = useQuery({
+  const absences = useQuery({
     queryKey: ['absences-month'],
+    enabled: !!session && canAbsences,
     queryFn: () =>
       apiGet<{ total: number }>(
-        `/api/absences?page=1&limit=1&fromDate=${monthStart.toISOString()}&toDate=${monthEnd.toISOString()}`
+        `/api/absences?page=1&limit=1&fromDate=${monthStart.toISOString()}&toDate=${monthEnd.toISOString()}`,
       ),
   });
 
-  const pendingLeaves = (leaveRequests?.data ?? []).filter((r) => r.status === 'PENDING').length;
+  const kpis = useMemo<KpiCard[]>(() => {
+    if (!session) return [];
+    const cards: KpiCard[] = [];
+    if (canEmployees) {
+      cards.push({
+        key: 'employees',
+        label: 'الموظفون النشطون',
+        value: empStats.data?.active ?? 0,
+        hint: `${empStats.data?.inactive ?? 0} متوقف · ${empStats.data?.total ?? 0} الإجمالي`,
+        href: '/dashboard/employees',
+        icon: Users,
+      });
+    }
+    if (canDepartments) {
+      cards.push({
+        key: 'departments',
+        label: 'الأقسام',
+        value: deptStats.data?.active ?? deptStats.data?.total ?? 0,
+        hint: `${deptStats.data?.total ?? 0} مسجّل`,
+        href: '/dashboard/departments',
+        icon: Building2,
+      });
+    }
+    if (canLeaves) {
+      const pending = leaveStats.data?.pending ?? 0;
+      cards.push({
+        key: 'leaves',
+        label: 'إجازات تنتظر قرارك',
+        value: pending,
+        hint: pending > 0 ? 'اضغط لفتح الطلبات ثم عدّل أو احذف' : 'لا يوجد طلب معلّق',
+        href: '/dashboard/leaves?status=PENDING',
+        icon: Clock,
+        tone: pending > 0 ? 'warn' : 'default',
+      });
+    }
+    if (canAbsences) {
+      cards.push({
+        key: 'absences',
+        label: 'غيابات هذا الشهر',
+        value: absences.data?.total ?? 0,
+        hint: monthLabel,
+        href: '/dashboard/absences',
+        icon: UserX,
+      });
+    }
+    return cards;
+  }, [
+    session,
+    canEmployees,
+    canDepartments,
+    canLeaves,
+    canAbsences,
+    empStats.data,
+    deptStats.data,
+    leaveStats.data,
+    absences.data,
+    monthLabel,
+  ]);
 
-  const counts = {
-    employees: employees?.total ?? 0,
-    departments: Array.isArray(departments) ? departments.length : 0,
-    leaves: pendingLeaves,
-    absences: absencesData?.total ?? 0,
+  const quickActions = QUICK_ACTIONS.filter((a) => hasAnyPermission(permissions, a.permission));
+  const pendingCount = leaveStats.data?.pending ?? 0;
+
+  const refresh = () => {
+    queryClient.invalidateQueries();
   };
 
-  const isLoading = employees === undefined && departments === undefined;
-  const visibleStats = stats.filter((s) => hasAnyPermission(permissions, s.permission));
-
-  if (isLoading) {
+  if (!session) {
     return <PageSkeleton />;
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-8"
-    >
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-        <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
-            {userName ? `مرحباً، ${userName}` : 'مرحباً بك'}
+    <div className="space-y-6">
+      <header className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm text-gray-500">{formatArLongDate()}</p>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 mt-1">
+            {session.name ? `مرحباً، ${session.name}` : 'لوحة الإحصاء'}
           </h1>
-          <p className="text-gray-500 mt-1">نظرة عامة على نظام الموارد البشرية</p>
+          <p className="text-gray-500 mt-1">
+            مركز الحكيم لأمراض الكلى — ملخص اليوم وما يحتاج إجراءً
+          </p>
         </div>
-        <div className="flex items-center gap-2 text-sm text-primary-600 bg-primary-50 px-4 py-2 rounded-xl">
-          <TrendingUp className="h-4 w-4" />
-          <span>آخر تحديث: الآن</span>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {visibleStats.map((stat, i) => {
-          const Icon = stat.icon;
-          const value = counts[stat.key as keyof typeof counts] ?? '-';
-          return (
-            <motion.div
-              key={stat.title}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.05 }}
-            >
-              <Link href={stat.href}>
-                <Card className="card-hover overflow-hidden elevation-2 h-full group">
-                  <CardContent className="p-6">
-                    <div className="flex items-start justify-between">
-                      <div>
-                        <p className="text-sm font-medium text-gray-500">{stat.title}</p>
-                        <p className="text-3xl font-bold text-gray-900 mt-1">{value}</p>
-                      </div>
-                      <div className={`rounded-2xl p-3 bg-gradient-to-br ${stat.color} shadow-md group-hover:scale-105 transition-transform`}>
-                        <Icon className="h-6 w-6 text-white" />
-                      </div>
-                    </div>
-                    <div className="flex items-center gap-1 mt-4 text-primary-600 text-sm font-medium opacity-0 group-hover:opacity-100 transition-opacity">
-                      <ChevronLeft className="h-4 w-4" />
-                      عرض التفاصيل
-                    </div>
-                  </CardContent>
-                </Card>
+        <div className="flex flex-wrap items-center gap-2">
+          {quickActions.map((action) => {
+            const Icon = action.icon;
+            return (
+              <Link key={action.href} href={action.href}>
+                <Button variant="outline" size="sm" className="gap-1.5">
+                  <Icon className="h-4 w-4" />
+                  {action.label}
+                </Button>
               </Link>
-            </motion.div>
-          );
-        })}
-      </div>
+            );
+          })}
+          <Button variant="secondary" size="sm" className="gap-1.5" onClick={refresh}>
+            <RefreshCw className="h-4 w-4" />
+            تحديث
+          </Button>
+        </div>
+      </header>
 
-      <Card className="border-0 shadow-md overflow-hidden">
-        <CardHeader>
-          <CardTitle>طلبات الإجازات حسب الحالة</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="h-48 min-h-[200px]">
-            {(() => {
-              const data = [
-                { name: 'قيد الانتظار', value: (leaveRequests?.data ?? []).filter((r) => r.status === 'PENDING').length },
-                { name: 'معتمدة', value: (leaveRequests?.data ?? []).filter((r) => r.status === 'APPROVED').length },
-                { name: 'مرفوضة', value: (leaveRequests?.data ?? []).filter((r) => r.status === 'REJECTED').length },
-              ].filter((d) => d.value > 0);
-              return data.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={data}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" />
-                    <YAxis />
-                    <Tooltip />
-                    <Bar dataKey="value" fill={COLORS[0]} radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="flex items-center justify-center h-full text-gray-400">لا توجد بيانات</div>
-              );
-            })()}
-          </div>
-        </CardContent>
-      </Card>
+      {canLeaves && pendingCount > 0 && (
+        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+          لديك <span className="font-semibold tabular-nums">{pendingCount}</span> طلب إجازة بانتظار القرار.
+          استخدم زر التعديل أو الحذف في لوحة العمل أدناه.
+        </div>
+      )}
 
-      <Card className="border-0 shadow-md">
-        <CardHeader>
-          <CardTitle>اختصارات سريعة</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-            {visibleStats.map((s) => {
-              const Icon = s.icon;
-              return (
-                <Link
-                  key={s.title}
-                  href={s.href}
-                  className="flex items-center gap-3 rounded-xl border border-gray-100 p-4 min-h-[48px] hover:border-primary-200 hover:bg-primary-50/50 transition-all duration-200"
-                >
-                  <div className={`rounded-xl p-2 ${s.bg}`}>
-                    <Icon className="h-5 w-5 text-primary-600" />
-                  </div>
-                  <span className="font-medium text-gray-900">{s.title}</span>
-                </Link>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
-    </motion.div>
+      <KpiStrip cards={kpis} />
+
+      <WorkBoard permissions={permissions} />
+    </div>
   );
 }

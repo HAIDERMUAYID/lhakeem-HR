@@ -24,7 +24,7 @@ import { CurrentUser } from '../auth/decorators/user.decorator';
 
 @Controller('devices')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.FINGERPRINT_OFFICER, PERMISSIONS.FINGERPRINT_MANAGER)
+@RequirePermissions(PERMISSIONS.DEVICES_VIEW, PERMISSIONS.ATTENDANCE_VIEW)
 export class DevicesController {
   constructor(private devicesService: DevicesService) {}
 
@@ -98,12 +98,14 @@ export class DevicesController {
   }
 
   @Post(':id/department')
+  @RequirePermissions(PERMISSIONS.DEVICES_BIND, PERMISSIONS.DEVICES_MANAGE)
   async setDeviceDepartment(@Param('id') id: string, @Body() body: { departmentId?: string }) {
     if (!body?.departmentId?.trim()) throw new BadRequestException('القسم مطلوب');
     return this.devicesService.setDeviceDepartment(id, body.departmentId);
   }
 
   @Post(':id/assign-pin')
+  @RequirePermissions(PERMISSIONS.PINS_ASSIGN)
   async assignPin(
     @Param('id') id: string,
     @Body() body: { fingerprintId?: string; employeeId?: string; moveToDepartment?: boolean },
@@ -120,6 +122,7 @@ export class DevicesController {
   }
 
   @Post(':id/bind-serial')
+  @RequirePermissions(PERMISSIONS.DEVICES_BIND, PERMISSIONS.DEVICES_MANAGE)
   async bindSerial(@Param('id') id: string, @Body() body: { serial?: string }) {
     if (!body?.serial?.trim()) throw new BadRequestException('الرقم التسلسلي مطلوب');
     return this.devicesService.bindSerial(id, body.serial);
@@ -135,6 +138,7 @@ export class DevicesController {
   }
 
   @Post(':id/sync-adms')
+  @RequirePermissions(PERMISSIONS.ATTENDANCE_VIEW, PERMISSIONS.DEVICES_MANAGE)
   async syncAdmsAttendance(
     @Param('id') id: string,
     @Query('fromDate') fromDate?: string,
@@ -161,6 +165,7 @@ export class DevicesController {
       limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
+  @RequirePermissions(PERMISSIONS.ATTENDANCE_EXPORT, PERMISSIONS.DEVICES_MANAGE)
   async uploadAttendanceImport(
     @Param('id') id: string,
     @UploadedFile() file: { buffer?: Buffer; originalname?: string },
@@ -178,6 +183,7 @@ export class DevicesController {
   }
 
   @Delete(':id/attendance-imports/:batchId')
+  @RequirePermissions(PERMISSIONS.DEVICES_MANAGE)
   async deleteAttendanceImport(
     @Param('id') id: string,
     @Param('batchId') batchId: string,
@@ -186,6 +192,7 @@ export class DevicesController {
   }
 
   @Post()
+  @RequirePermissions(PERMISSIONS.DEVICES_MANAGE)
   async create(
     @Body()
     dto: { name: string; code?: string; location?: string; isActive?: boolean },
@@ -194,6 +201,7 @@ export class DevicesController {
   }
 
   @Put(':id')
+  @RequirePermissions(PERMISSIONS.DEVICES_MANAGE)
   async update(
     @Param('id') id: string,
     @Body()
@@ -203,6 +211,7 @@ export class DevicesController {
   }
 
   @Delete(':id')
+  @RequirePermissions(PERMISSIONS.DEVICES_MANAGE)
   async delete(@Param('id') id: string) {
     return this.devicesService.delete(id);
   }
@@ -210,7 +219,7 @@ export class DevicesController {
 
 @Controller('employees/:employeeId/fingerprints')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.FINGERPRINT_OFFICER, PERMISSIONS.FINGERPRINT_MANAGER, PERMISSIONS.EMPLOYEES_MANAGE)
+@RequirePermissions(PERMISSIONS.PINS_ASSIGN, PERMISSIONS.DEVICES_VIEW, PERMISSIONS.EMPLOYEES_VIEW, PERMISSIONS.EMPLOYEES_MANAGE)
 export class EmployeeFingerprintsController {
   constructor(private devicesService: DevicesService) {}
 
@@ -220,6 +229,7 @@ export class EmployeeFingerprintsController {
   }
 
   @Post()
+  @RequirePermissions(PERMISSIONS.PINS_ASSIGN, PERMISSIONS.EMPLOYEES_MANAGE)
   async add(
     @Param('employeeId') employeeId: string,
     @Body() body: { deviceId: string; fingerprintId: string },
@@ -232,6 +242,7 @@ export class EmployeeFingerprintsController {
   }
 
   @Patch(':recordId')
+  @RequirePermissions(PERMISSIONS.PINS_ASSIGN, PERMISSIONS.EMPLOYEES_MANAGE)
   async updateFingerprintId(
     @Param('employeeId') employeeId: string,
     @Param('recordId') recordId: string,
@@ -245,6 +256,7 @@ export class EmployeeFingerprintsController {
   }
 
   @Delete(':recordId')
+  @RequirePermissions(PERMISSIONS.PINS_ASSIGN, PERMISSIONS.EMPLOYEES_MANAGE)
   async remove(
     @Param('employeeId') employeeId: string,
     @Param('recordId') recordId: string,

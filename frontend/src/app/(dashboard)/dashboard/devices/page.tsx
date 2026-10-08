@@ -25,6 +25,7 @@ import { Modal } from '@/components/ui/modal';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { EmptyState } from '@/components/shared/empty-state';
+import { CanDo } from '@/components/shared/can-do';
 
 type Device = {
   id: string;
@@ -154,10 +155,12 @@ export default function DevicesPage() {
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">أجهزة البصمة</h1>
           <p className="text-gray-500 mt-1">إدارة أجهزة الحضور (الإدارة، الطوارئ، إلخ)</p>
         </div>
-        <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md min-h-[44px]">
-          <Plus className="h-5 w-5" />
-          إضافة جهاز
-        </Button>
+        <CanDo permission="DEVICES_MANAGE">
+          <Button onClick={() => setAddOpen(true)} className="gap-2 shadow-md min-h-[44px]">
+            <Plus className="h-5 w-5" />
+            إضافة جهاز
+          </Button>
+        </CanDo>
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
@@ -295,6 +298,7 @@ export default function DevicesPage() {
                             {d._count.fingerprints} بصمة
                           </Button>
                         </Link>
+                        <CanDo permission="DEVICES_MANAGE">
                         <div className="flex gap-1">
                           <Button
                             size="sm"
@@ -315,6 +319,7 @@ export default function DevicesPage() {
                             <Trash2 className="h-4 w-4" />
                           </Button>
                         </div>
+                        </CanDo>
                       </div>
                     </CardContent>
                   </Card>

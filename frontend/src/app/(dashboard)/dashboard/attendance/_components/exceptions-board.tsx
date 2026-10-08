@@ -11,6 +11,7 @@ import {
 } from '@/lib/attendance-stats';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { CanDo } from '@/components/shared/can-do';
 import { StatusBadge } from './status-badge';
 
 const ORDER: ExceptionKind[] = ['absent', 'single', 'late', 'early', 'noschedule'];
@@ -49,16 +50,18 @@ export function ExceptionsBoard({
               {unique} سجل يحتاج تدخلاً: غياب، بصمة واحدة، تأخير، انصراف مبكر، أو بلا جدول.
             </p>
           </div>
-          <div className="flex gap-2">
-            <Button size="sm" className="gap-1" onClick={() => onPrint(all)}>
-              <Printer className="h-4 w-4" />
-              طباعة الاستثناءات
-            </Button>
-            <Button size="sm" variant="outline" className="gap-1" onClick={() => onExcel(all)}>
-              <FileSpreadsheet className="h-4 w-4" />
-              إكسل
-            </Button>
-          </div>
+          <CanDo permission="ATTENDANCE_EXPORT">
+            <div className="flex gap-2">
+              <Button size="sm" className="gap-1" onClick={() => onPrint(all)}>
+                <Printer className="h-4 w-4" />
+                طباعة الاستثناءات
+              </Button>
+              <Button size="sm" variant="outline" className="gap-1" onClick={() => onExcel(all)}>
+                <FileSpreadsheet className="h-4 w-4" />
+                إكسل
+              </Button>
+            </div>
+          </CanDo>
         </CardContent>
       </Card>
 

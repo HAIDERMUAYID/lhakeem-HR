@@ -51,6 +51,21 @@ const SHIFT_PATTERNS = [
   { value: 'FIXED', label: 'ثابت (أيام أسبوعية محددة)' },
 ];
 
+const MONTH_DAYS_PATTERN = 'MONTH_DAYS';
+const DAY_SHORT = ['سبت', 'أحد', 'إثنين', 'ثلاثاء', 'أربعاء', 'خميس', 'جمعة'];
+
+function isMonthDays(pattern: string | null | undefined) {
+  return pattern === MONTH_DAYS_PATTERN;
+}
+
+function usesWeekdays(workType: string, pattern: string) {
+  return workType === 'MORNING' || (workType === 'SHIFTS' && pattern === 'FIXED');
+}
+
+function usesCycle(workType: string, pattern: string) {
+  return workType === 'SHIFTS' && !!pattern && pattern !== 'FIXED' && !isMonthDays(pattern);
+}
+
 function formatDays(s: string) {
   return s
     .split(',')
@@ -59,10 +74,26 @@ function formatDays(s: string) {
     .join('، ');
 }
 
+function formatMonthDays(s: string) {
+  const days = s
+    .split(',')
+    .map((n) => parseInt(n, 10))
+    .filter((n) => Number.isFinite(n) && n >= 1 && n <= 31);
+  if (!days.length) return 'لم يُحدد يوم';
+  return `أيام ${days.join('، ')}`;
+}
+
 function formatShiftPattern(p: string | null) {
   if (!p) return '';
+  if (isMonthDays(p)) return 'أيام محددة';
   const found = SHIFT_PATTERNS.find((x) => x.value === p);
   return found?.label ?? p;
+}
+
+function scheduleKindLabel(workType: string, shiftPattern: string | null) {
+  if (isMonthDays(shiftPattern)) return 'أيام محددة';
+  if (workType === 'MORNING') return 'صباحي';
+  return 'خفر';
 }
 
 function parseTimeToHours(t: string): number {
@@ -80,6 +111,11 @@ function calcMonthlyHours(form: {
   const hoursPerDay = parseTimeToHours(form.endTime) - parseTimeToHours(form.startTime);
   if (hoursPerDay <= 0) return null;
   const WEEKS_PER_MONTH = 365 / 12 / 7;
+  if (isMonthDays(form.shiftPattern)) {
+    const days = form.daysOfWeek.split(',').filter(Boolean).length;
+    if (days === 0) return null;
+    return Math.round(hoursPerDay * days * 10) / 10;
+  }
   if (form.workType === 'MORNING' || (form.workType === 'SHIFTS' && form.shiftPattern === 'FIXED')) {
     const days = form.daysOfWeek.split(',').filter(Boolean).length;
     if (days === 0) return null;
@@ -91,6 +127,69 @@ function calcMonthlyHours(form: {
     return Math.round(hoursPerDay * daysPerMonth * 10) / 10;
   }
   return null;
+}
+
+function MonthDayPicker({
+  year,
+  month,
+  selected,
+  onToggle,
+}: {
+  year: number;
+  month: number;
+  selected: number[];
+  onToggle: (day: number) => void;
+}) {
+  const daysInMonth = new Date(year, month, 0).getDate();
+  const lead = (new Date(year, month - 1, 1).getDay() + 1) % 7;
+  const cells: Array<number | null> = [
+    ...Array.from({ length: lead }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+  const selectedSet = new Set(selected);
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-sm font-medium text-gray-700">
+          تقويم {MONTHS_AR[month - 1]} {year}
+        </p>
+        <p className="text-xs text-gray-500">اضغط اليوم لتحديده أو إلغائه</p>
+      </div>
+      <div className="grid grid-cols-7 gap-1 text-center text-[11px] font-medium text-gray-500">
+        {DAY_SHORT.map((d) => (
+          <div key={d} className="py-1">
+            {d}
+          </div>
+        ))}
+      </div>
+      <div className="grid grid-cols-7 gap-1">
+        {cells.map((day, i) =>
+          day == null ? (
+            <div key={`empty-${i}`} />
+          ) : (
+            <button
+              key={day}
+              type="button"
+              onClick={() => onToggle(day)}
+              className={`min-h-[44px] rounded-xl text-sm font-semibold transition-colors ${
+                selectedSet.has(day)
+                  ? 'bg-primary-700 text-white shadow-sm'
+                  : 'border border-gray-200 bg-white text-gray-800 hover:border-primary-300 hover:bg-primary-50'
+              }`}
+            >
+              {day}
+            </button>
+          ),
+        )}
+      </div>
+      <p className="text-sm text-gray-600">
+        {selected.length === 0
+          ? 'لم يُختر أي يوم بعد'
+          : `تم اختيار ${selected.length} ${selected.length === 1 ? 'يوم' : 'أيام'}: ${selected.join('، ')}`}
+      </p>
+    </div>
+  );
 }
 
 function formatHoursMinutes(decimalHours: number): string {
@@ -198,8 +297,11 @@ export default function SchedulesPage() {
         month,
         workType: body.workType,
         shiftPattern: body.workType === 'SHIFTS' ? body.shiftPattern || null : null,
-        daysOfWeek: body.workType === 'MORNING' || (body.workType === 'SHIFTS' && body.shiftPattern === 'FIXED') ? body.daysOfWeek : '0',
-        cycleStartDate: body.workType === 'SHIFTS' && body.shiftPattern && body.shiftPattern !== 'FIXED' ? body.cycleStartDate : undefined,
+        daysOfWeek:
+          usesWeekdays(body.workType, body.shiftPattern) || isMonthDays(body.shiftPattern)
+            ? body.daysOfWeek
+            : '0',
+        cycleStartDate: usesCycle(body.workType, body.shiftPattern) ? body.cycleStartDate : undefined,
         startTime: body.startTime,
         endTime: body.endTime,
         arrivalGraceMinutes: body.arrivalGraceMinutes,
@@ -223,8 +325,11 @@ export default function SchedulesPage() {
         month,
         workType: body.workType,
         shiftPattern: body.workType === 'SHIFTS' ? body.shiftPattern || null : null,
-        daysOfWeek: body.workType === 'MORNING' || (body.workType === 'SHIFTS' && body.shiftPattern === 'FIXED') ? body.daysOfWeek : '0',
-        cycleStartDate: body.workType === 'SHIFTS' && body.shiftPattern && body.shiftPattern !== 'FIXED' ? body.cycleStartDate : undefined,
+        daysOfWeek:
+          usesWeekdays(body.workType, body.shiftPattern) || isMonthDays(body.shiftPattern)
+            ? body.daysOfWeek
+            : '0',
+        cycleStartDate: usesCycle(body.workType, body.shiftPattern) ? body.cycleStartDate : undefined,
         startTime: body.startTime,
         endTime: body.endTime,
         arrivalGraceMinutes: body.arrivalGraceMinutes,
@@ -354,6 +459,10 @@ export default function SchedulesPage() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isMonthDays(form.shiftPattern) && !form.daysOfWeek.split(',').filter(Boolean).length) {
+      toast.error('اختر يوماً واحداً على الأقل من التقويم');
+      return;
+    }
     const payload = { ...form, startTime: localStartTime, endTime: localEndTime };
     if (selectedEmployeeIds.length > 1) {
       bulkMutation.mutate({ ...payload, employeeIds: selectedEmployeeIds });
@@ -538,7 +647,7 @@ export default function SchedulesPage() {
         <form onSubmit={handleSubmit}>
           <div className="rounded-xl bg-primary-50/80 border border-primary-100 p-4 mb-5">
             <p className="text-sm text-primary-800">
-              الخطوة ١: اختر نوع الدوام. الخفراء لا يستفيدون من العطل الرسمية. الجدول يُحفظ لشهر {MONTHS_AR[month - 1]} {year}.
+              الخطوة ١: اختر نوع الدوام. الخفراء لا يستفيدون من العطل الرسمية. «أيام محددة» لدوام بأيام معيّنة من الشهر عبر التقويم. الجدول يُحفظ لشهر {MONTHS_AR[month - 1]} {year}.
             </p>
           </div>
 
@@ -546,8 +655,8 @@ export default function SchedulesPage() {
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-2">نوع الدوام</label>
-                <div className="flex gap-3">
-                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border-2 flex-1 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border-2 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
                     <input
                       type="radio"
                       name="workType"
@@ -565,12 +674,12 @@ export default function SchedulesPage() {
                     />
                     <span className="text-sm">صباحي</span>
                   </label>
-                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border-2 flex-1 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
+                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border-2 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
                     <input
                       type="radio"
                       name="workType"
                       value="SHIFTS"
-                      checked={form.workType === 'SHIFTS'}
+                      checked={form.workType === 'SHIFTS' && !isMonthDays(form.shiftPattern)}
                       onChange={() =>
                         setForm((f) => ({
                           ...f,
@@ -583,10 +692,28 @@ export default function SchedulesPage() {
                     />
                     <span className="text-sm">خفر</span>
                   </label>
+                  <label className="flex items-center gap-2 cursor-pointer p-3 rounded-xl border-2 has-[:checked]:border-primary-500 has-[:checked]:bg-primary-50">
+                    <input
+                      type="radio"
+                      name="workType"
+                      value="MONTH_DAYS"
+                      checked={isMonthDays(form.shiftPattern)}
+                      onChange={() =>
+                        setForm((f) => ({
+                          ...f,
+                          workType: 'SHIFTS',
+                          shiftPattern: MONTH_DAYS_PATTERN,
+                          daysOfWeek: '',
+                        }))
+                      }
+                      className="text-primary-600"
+                    />
+                    <span className="text-sm">أيام محددة</span>
+                  </label>
                 </div>
               </div>
 
-              {form.workType === 'SHIFTS' && (
+              {form.workType === 'SHIFTS' && !isMonthDays(form.shiftPattern) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">نمط الخفر</label>
                   <div className="grid grid-cols-2 gap-2">
@@ -617,7 +744,7 @@ export default function SchedulesPage() {
                 </div>
               )}
 
-              {(form.workType === 'MORNING' || (form.workType === 'SHIFTS' && form.shiftPattern === 'FIXED')) && (
+              {usesWeekdays(form.workType, form.shiftPattern) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">أيام العمل</label>
                   <div className="flex flex-wrap gap-2">
@@ -644,7 +771,19 @@ export default function SchedulesPage() {
                 </div>
               )}
 
-              {form.workType === 'SHIFTS' && form.shiftPattern && form.shiftPattern !== 'FIXED' && (
+              {isMonthDays(form.shiftPattern) && (
+                <MonthDayPicker
+                  year={year}
+                  month={month}
+                  selected={form.daysOfWeek
+                    .split(',')
+                    .map((n) => parseInt(n, 10))
+                    .filter((n) => Number.isFinite(n) && n >= 1 && n <= 31)}
+                  onToggle={toggleDay}
+                />
+              )}
+
+              {usesCycle(form.workType, form.shiftPattern) && (
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">تاريخ بداية الدورة</label>
                   <Input
@@ -720,7 +859,13 @@ export default function SchedulesPage() {
                   <option value="">— لا يهم —</option>
                   {list.map((s) => (
                     <option key={s.id} value={s.employee.id}>
-                      {s.employee.fullName} ({formatShiftPattern(s.shiftPattern) || (s.workType === 'MORNING' ? 'صباحي' : 'خفر')})
+                      {s.employee.fullName} ({scheduleKindLabel(s.workType, s.shiftPattern)}
+                      {s.shiftPattern && !isMonthDays(s.shiftPattern) && s.workType === 'SHIFTS'
+                        ? ` · ${formatShiftPattern(s.shiftPattern)}`
+                        : isMonthDays(s.shiftPattern)
+                          ? ` · ${formatMonthDays(s.daysOfWeek)}`
+                          : ''}
+                      )
                     </option>
                   ))}
                 </select>
@@ -874,12 +1019,12 @@ export default function SchedulesPage() {
                                       {s.startTime} - {s.endTime}
                                     </p>
                                     <p className="text-xs text-gray-400">
-                                      {s.workType === 'SHIFTS' && s.shiftPattern ? (
-                                        formatShiftPattern(s.shiftPattern)
-                                      ) : (
-                                        formatDays(s.daysOfWeek)
-                                      )}
-                                      {s.cycleStartDate && s.shiftPattern && s.shiftPattern !== 'FIXED' && (
+                                      {isMonthDays(s.shiftPattern)
+                                        ? formatMonthDays(s.daysOfWeek)
+                                        : s.workType === 'SHIFTS' && s.shiftPattern
+                                          ? formatShiftPattern(s.shiftPattern)
+                                          : formatDays(s.daysOfWeek)}
+                                      {s.cycleStartDate && usesCycle(s.workType, s.shiftPattern ?? '') && (
                                         <> — بداية الدورة: {new Date(s.cycleStartDate).toLocaleDateString('ar-EG')}</>
                                       )}
                                     </p>
@@ -892,8 +1037,16 @@ export default function SchedulesPage() {
                                   <Badge variant={(s.status ?? 'PENDING') === 'APPROVED' ? 'success' : 'secondary'}>
                                     {(s.status ?? 'PENDING') === 'APPROVED' ? 'معتمد' : 'معلق'}
                                   </Badge>
-                                  <Badge variant={s.workType === 'MORNING' ? 'success' : 'warning'}>
-                                    {s.workType === 'MORNING' ? 'صباحي' : 'خفر'}
+                                  <Badge
+                                    variant={
+                                      isMonthDays(s.shiftPattern)
+                                        ? 'default'
+                                        : s.workType === 'MORNING'
+                                          ? 'success'
+                                          : 'warning'
+                                    }
+                                  >
+                                    {scheduleKindLabel(s.workType, s.shiftPattern)}
                                   </Badge>
                                   <Button
                                     size="sm"

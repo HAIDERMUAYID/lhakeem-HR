@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { AppLogo } from './app-logo';
+import { hasAnyPermission } from '@/lib/permissions';
 
 type NavItem = { href: string; label: string; icon: typeof LayoutDashboard; permission: string | string[] | null };
 
@@ -43,16 +44,16 @@ const navSections: { title: string; items: NavItem[] }[] = [
       { href: '/dashboard/employees', label: 'الموظفين', icon: Users, permission: 'EMPLOYEES_VIEW' },
       { href: '/dashboard/data-completion', label: 'إكمال البيانات', icon: ClipboardCheck, permission: 'EMPLOYEES_VIEW' },
       { href: '/dashboard/imports', label: 'الاستيراد', icon: Upload, permission: 'EMPLOYEES_MANAGE' },
-      { href: '/dashboard/departments', label: 'الأقسام', icon: Building2, permission: 'DEPARTMENTS_MANAGE' },
+      { href: '/dashboard/departments', label: 'الأقسام', icon: Building2, permission: 'DEPARTMENTS_VIEW' },
     ],
   },
   {
     title: 'البصمة والغيابات',
     items: [
-      { href: '/dashboard/devices', label: 'أجهزة البصمة', icon: Fingerprint, permission: ['FINGERPRINT_OFFICER', 'FINGERPRINT_MANAGER', 'DEPARTMENTS_MANAGE'] },
-      { href: '/dashboard/attendance', label: 'الحضور والانصراف', icon: Clock3, permission: ['FINGERPRINT_OFFICER', 'FINGERPRINT_MANAGER', 'DEPARTMENTS_MANAGE'] },
-      { href: '/dashboard/fingerprint-calendar', label: 'تقويم وحدة البصمة', icon: CalendarDays, permission: ['FINGERPRINT_OFFICER', 'FINGERPRINT_MANAGER', 'DEPARTMENTS_MANAGE'] },
-      { href: '/dashboard/absences', label: 'الغيابات', icon: UserX, permission: ['FINGERPRINT_OFFICER', 'FINGERPRINT_MANAGER'] },
+      { href: '/dashboard/devices', label: 'أجهزة البصمة', icon: Fingerprint, permission: 'DEVICES_VIEW' },
+      { href: '/dashboard/attendance', label: 'الحضور والانصراف', icon: Clock3, permission: 'ATTENDANCE_VIEW' },
+      { href: '/dashboard/fingerprint-calendar', label: 'تقويم وحدة البصمة', icon: CalendarDays, permission: 'ATTENDANCE_VIEW' },
+      { href: '/dashboard/absences', label: 'الغيابات', icon: UserX, permission: 'ABSENCES_VIEW' },
     ],
   },
   {
@@ -103,9 +104,7 @@ export function Sidebar({ open = true, onClose, mobile = false, collapsed = fals
 
   const hasAccess = (perm: string | string[] | null) => {
     if (!perm) return true;
-    if (userPermissions.includes('ADMIN')) return true;
-    const list = Array.isArray(perm) ? perm : [perm];
-    return list.some((p) => userPermissions.includes(p));
+    return hasAnyPermission(userPermissions, perm);
   };
 
   const visibleSections = useMemo(

@@ -9,6 +9,7 @@ import { apiPost } from '@/lib/api';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { hasAnyPermission } from '@/lib/permissions';
 
 type UserData = { id: string; name: string; username?: string; email?: string; role: string; departmentId?: string; permissions?: string[] };
 
@@ -189,7 +190,7 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      {(user?.permissions?.includes('ADMIN') || user?.permissions?.includes('BALANCE_ACCRUAL')) && (
+      {hasAnyPermission(user?.permissions, ['BALANCE_ACCRUAL', 'SETTINGS_MANAGE']) && (
         <>
           <Card className="border-0 shadow-md overflow-hidden">
             <CardContent className="p-6">

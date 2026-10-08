@@ -7,7 +7,7 @@ import { UnitsService } from './units.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard, PermissionsGuard)
-@RequirePermissions(PERMISSIONS.ADMIN, PERMISSIONS.DEPARTMENTS_MANAGE)
+@RequirePermissions(PERMISSIONS.DEPARTMENTS_VIEW, PERMISSIONS.DEPARTMENTS_MANAGE, PERMISSIONS.EMPLOYEES_VIEW)
 export class UnitsController {
   constructor(private unitsService: UnitsService) {}
 
@@ -25,6 +25,7 @@ export class UnitsController {
   }
 
   @Post('units')
+  @RequirePermissions(PERMISSIONS.DEPARTMENTS_MANAGE)
   async create(
     @Body()
     dto: {
@@ -40,6 +41,7 @@ export class UnitsController {
   }
 
   @Patch('units/:id')
+  @RequirePermissions(PERMISSIONS.DEPARTMENTS_MANAGE)
   async update(
     @Param('id') id: string,
     @Body()
@@ -56,6 +58,7 @@ export class UnitsController {
   }
 
   @Delete('units/:id')
+  @RequirePermissions(PERMISSIONS.DEPARTMENTS_MANAGE)
   async remove(@Param('id') id: string) {
     return this.unitsService.softDelete(id);
   }

@@ -762,6 +762,95 @@ export class LeaveRequestsService {
     });
   }
 
+  async update(
+    id: string,
+    dto: {
+      leaveTypeId?: string;
+      startDate?: Date;
+      endDate?: Date;
+      daysCount?: number;
+      hoursCount?: number;
+      reason?: string | null;
+    },
+  ) {
+    const req = await this.prisma.leaveRequest.findUnique({
+      where: { id },
+      include: { employee: { select: { isActive: true } } },
+    });
+    if (!req) throw new NotFoundException('طلب الإجازة غير موجود');
+    if (req.status !== 'PENDING') {
+      throw new BadRequestException('يمكن تعديل الطلبات قيد الانتظار فقط');
+    }
+    if (!req.employee?.isActive) {
+      throw new BadRequestException('لا يمكن تعديل إجازة موظف غير نشط');
+    }
+
+    const leaveTypeId = dto.leaveTypeId?.trim() || req.leaveTypeId;
+    if (dto.leaveTypeId) {
+      const leaveType = await this.prisma.leaveType.findUnique({ where: { id: leaveTypeId } });
+      if (!leaveType) throw new BadRequestException('نوع الإجازة غير موجود');
+    }
+
+    const startDate = dto.startDate ? new Date(dto.startDate) : new Date(req.startDate);
+    if (Number.isNaN(startDate.getTime())) {
+      throw new BadRequestException('تاريخ البداية غير صالح');
+    }
+
+    const daysCount = dto.daysCount != null ? Number(dto.daysCount) : req.daysCount;
+    if (!Number.isFinite(daysCount) || daysCount <= 0) {
+      throw new BadRequestException('عدد الأيام غير صالح');
+    }
+
+    const hoursCount =
+      dto.hoursCount != null
+        ? Number(dto.hoursCount)
+        : Number(req.hoursCount ?? daysCount * HOURS_PER_DAY);
+    if (!Number.isFinite(hoursCount) || hoursCount < 0) {
+      throw new BadRequestException('عدد الساعات غير صالح');
+    }
+
+    let endDate: Date;
+    if (dto.endDate) {
+      endDate = new Date(dto.endDate);
+      if (Number.isNaN(endDate.getTime())) {
+        throw new BadRequestException('تاريخ النهاية غير صالح');
+      }
+    } else {
+      endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + Math.max(0, Math.ceil(daysCount) - 1));
+      endDate.setHours(23, 59, 59, 999);
+    }
+
+    const overlapping = await this.hasOverlappingApprovedLeave(req.employeeId, startDate, endDate, id);
+    if (overlapping) {
+      throw new BadRequestException('لدى الموظف إجازة معتمدة تتداخل مع التواريخ المحددة.');
+    }
+
+    return this.prisma.leaveRequest.update({
+      where: { id },
+      data: {
+        leaveTypeId,
+        startDate,
+        endDate,
+        daysCount,
+        hoursCount,
+        reason: dto.reason !== undefined ? dto.reason?.trim() || null : undefined,
+      },
+      include: {
+        employee: {
+          select: {
+            id: true,
+            fullName: true,
+            leaveBalance: true,
+            department: true,
+            unit: { select: { id: true, name: true } },
+          },
+        },
+        leaveType: { select: { id: true, nameAr: true } },
+      },
+    });
+  }
+
   async updateStatus(id: string, status: LeaveStatus, approvedBy: string) {
     const req = await this.prisma.leaveRequest.findUnique({
       where: { id },

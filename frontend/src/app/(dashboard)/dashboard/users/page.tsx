@@ -136,6 +136,7 @@ export default function UsersPage() {
         list: { code: string; label: string }[];
         dependencies?: Record<string, string[]>;
         modules?: Record<string, string[]>;
+        presets?: { id: string; label: string; permissions: string[] }[];
       }>('/api/auth/permissions'),
   });
 
@@ -679,6 +680,16 @@ export default function UsersPage() {
               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-primary-50 text-primary-700 border border-primary-100">
                 {roleLabels[selectedUser.role] || selectedUser.role}
               </span>
+              {(permsData?.presets ?? []).map((preset) => (
+                <button
+                  key={preset.id}
+                  type="button"
+                  onClick={() => setSelectedPerms([...new Set([...selectedPerms, ...preset.permissions])])}
+                  className="rounded-full border border-gray-200 bg-white px-3 py-1 text-xs text-gray-700 hover:bg-gray-50"
+                >
+                  {preset.label}
+                </button>
+              ))}
             </div>
 
             {/* المحتوى الرئيسي: شبكة أفقية (لاندسكيب) */}

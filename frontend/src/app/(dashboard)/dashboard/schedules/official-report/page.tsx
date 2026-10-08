@@ -24,9 +24,11 @@ const SHIFT_PATTERN_LABEL: Record<string, string> = {
   '1x2': '1×2',
   '1x3': '1×3',
   FIXED: 'ثابت',
+  MONTH_DAYS: 'أيام محددة',
 };
 
 function formatWorkType(workType: string, shiftPattern: string | null): string {
+  if (shiftPattern === 'MONTH_DAYS') return 'أيام محددة';
   const base = WORK_TYPE_LABEL[workType] ?? workType;
   if (workType !== 'SHIFTS' || !shiftPattern) return base;
   const pattern = SHIFT_PATTERN_LABEL[shiftPattern] ?? shiftPattern;

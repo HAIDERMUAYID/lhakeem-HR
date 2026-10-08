@@ -50,6 +50,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { EmptyState } from '@/components/shared/empty-state';
 import { Modal } from '@/components/ui/modal';
 import { useDebounce } from '@/hooks/use-debounce';
+import { useHasPermission } from '@/hooks/use-permissions';
 import { KpiStrip } from './_components/kpi-strip';
 import { SheetTable, ColumnPicker, DEFAULT_COLUMNS, type ColumnKey } from './_components/sheet-table';
 import { SummaryTable } from './_components/summary-table';
@@ -136,6 +137,9 @@ function saturdayOf(date: Date) {
 }
 
 export default function AttendancePage() {
+  const canExport = useHasPermission('ATTENDANCE_EXPORT');
+  const canAssign = useHasPermission('PINS_ASSIGN');
+  const canBind = useHasPermission('DEVICES_BIND');
   const queryClient = useQueryClient();
   const router = useRouter();
   const pathname = usePathname();
@@ -624,12 +628,14 @@ export default function AttendancePage() {
                     ))}
                   </select>
                 </div>
+                {canBind && (
                 <Button
                   disabled={!bindDeviceId || bindMutation.isPending}
                   onClick={() => bindMutation.mutate({ deviceId: bindDeviceId, serial: s.serial })}
                 >
                   ربط بهذا القسم
                 </Button>
+                )}
               </div>
             ))}
           </CardContent>
@@ -736,6 +742,7 @@ export default function AttendancePage() {
                     <label className="mb-1 block text-xs text-gray-500">قسم الجهاز</label>
                     <select
                       className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm"
+                      disabled={!canBind}
                       value={day?.deviceDepartment?.locked ? day.deviceDepartment.id : ''}
                       onChange={(e) => {
                         if (e.target.value) deptMutation.mutate(e.target.value);
@@ -912,6 +919,7 @@ export default function AttendancePage() {
                           <td className="px-3 py-2 font-mono text-xs">{formatDateTime(pin.firstSeenAt)}</td>
                           <td className="px-3 py-2 font-mono text-xs">{formatDateTime(pin.lastSeenAt)}</td>
                           <td className="px-3 py-2">
+                            {canAssign && (
                             <Button
                               size="sm"
                               variant="outline"
@@ -919,6 +927,7 @@ export default function AttendancePage() {
                             >
                               تعريف
                             </Button>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -991,6 +1000,7 @@ export default function AttendancePage() {
                     </h2>
                     <p className="mt-1 text-xs text-gray-500">اضغط على أي موظف لعرض تفاصيل أيامه وبصماته. يتأثر الملخص بالبحث والقسم والوحدة.</p>
                   </div>
+                  {canExport && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -1006,6 +1016,7 @@ export default function AttendancePage() {
                     <FileSpreadsheet className="h-4 w-4" />
                     إكسل
                   </Button>
+                  )}
                 </div>
                 <div className="mb-4 grid gap-3 md:grid-cols-3">
                   <div className="relative">
@@ -1071,6 +1082,7 @@ export default function AttendancePage() {
                   <span className="text-sm font-normal text-gray-500">({filteredRoster.length})</span>
                 </h2>
                 <div className="flex flex-wrap gap-2">
+                  {canExport && (
                   <Button
                     size="sm"
                     className="gap-1"
@@ -1085,6 +1097,8 @@ export default function AttendancePage() {
                     <Printer className="h-4 w-4" />
                     طباعة
                   </Button>
+                  )}
+                  {canExport && (
                   <Button
                     size="sm"
                     variant="outline"
@@ -1105,7 +1119,8 @@ export default function AttendancePage() {
                     <FileSpreadsheet className="h-4 w-4" />
                     إكسل
                   </Button>
-                  {(['official', 'detailed'] as const).map((layout) => (
+                  )}
+                  {canExport && (['official', 'detailed'] as const).map((layout) => (
                     <Button
                       key={layout}
                       size="sm"
